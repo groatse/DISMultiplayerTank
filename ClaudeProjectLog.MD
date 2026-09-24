@@ -83,3 +83,29 @@ Created `ProjectMainLog.MD` in the repo root with the two requested entries (Cla
 ### User Choices
 
 - Established a two-log structure: `ClaudeProjectLog.MD` for the full conversation record, `ProjectMainLog.MD` for high-level completed tasks and architectural decisions.
+
+---
+
+## Entry 6 — 2026-09-24
+
+### Prompt
+
+> now read this and get acquinted with the project. ask me for clarifications or design choices. file:///C:/Users/groat/Downloads/Unreal%20Engine%20Take-Home%20Assignment_%20Atari%202600%20Combat-Style%20Multiplayer%20Prototype-230926.pdf also be aware, that the game is top-down, we will be using the GrillDIS plugin, we will have walls and respawn is like the old game (movement freeze, and a forced move to a random direction)
+
+### Claude's Answer
+
+Read the assignment PDF: a 2-player Atari Combat-style tank prototype in UE 5.7/5.8, synchronized over the DIS protocol (GRILL DIS plugin) instead of Unreal replication — tank identity/position/orientation/velocity, fire events, and hit/destruction events must flow as DIS PDUs, with reasonable handling of delayed/dropped/out-of-order updates. Deliverables: source, executable build, README, technical notes (authority model, sync approach, assumptions, limitations, AI-tool usage), and video/screenshots. Evaluation favors a small reliable prototype with readable code and clear tradeoffs.
+
+Verified the project is already prepared: UE 5.7 with `GRILLDISForUnreal` and `GeoReferencing` plugins enabled.
+
+Stated working assumptions: classic Combat movement (rotate in place + forward/back, gun fixed to hull, no independent turret), fixed top-down camera showing the whole arena, dead reckoning with smoothing for remote entities.
+
+Asked four design questions: hit/kill authority model, shell synchronization method, instance identity assignment, and classic gameplay feature scope.
+
+### User Choices
+
+- **Setting (from prompt):** top-down game, walls included, GrillDIS plugin, classic Combat respawn (movement freeze + forced move in a random direction).
+- **Hit authority — standard DIS split:** shooter simulates and publishes its shells (Fire + Detonation PDUs); the victim adjudicates damage to its own tank from incoming Detonations and publishes its own destroyed state. Each machine stays fully authoritative over its own entities.
+- **Shell sync — full DIS entity:** in the original game the shell is steerable (turning the tank steers the shell in flight), which requires the shell to be a live entity publishing Entity State PDUs, not a fire-and-forget event. User acknowledged this is prone to errors under lag/dropped frames affecting hit authority, but wants the steerable-shell ability in the first iteration.
+- **Instance identity — auto-negotiate with a failsafe against race conditions:** the game must run with minimal clicking — launch two instances on the network and they automatically start a game, no menu.
+- **Gameplay features:** one shell at a time per tank; score display; keep score; map reset at 10 kills. (No shell ricochet off walls, no round timer.)
