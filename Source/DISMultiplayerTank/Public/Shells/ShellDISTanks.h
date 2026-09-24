@@ -23,12 +23,27 @@ public:
 	/** Binds the shell to its firing tank and starts flight along the tank's facing. */
 	void InitShell(ATankDISTanks* FiringTank);
 
+	/** Marks this shell as a ghost mirroring a remote instance's shell, with collision disabled. */
+	void InitAsGhost();
+
+	/** Returns true when this shell mirrors a remote instance's shell. */
+	bool IsGhost() const { return bIsGhost; }
+
+	/** Applies a freshly received remote state as the new dead-reckoning baseline. */
+	void ApplyRemoteShellState(const FVector& NewBaseLocation, float NewBaseYawDegrees, const FVector& NewVelocityCmPerSec, double ReceiveWorldSeconds);
+
+	/** Returns the current flight velocity in cm/s. */
+	FVector GetFlightVelocityCmPerSec() const;
+
 protected:
 	/** Applies one fixed step of steering and swept flight, detonating on any blocking hit. */
 	void SimulateFlightStep(float StepSeconds);
 
-	/** Handles a blocking impact by damaging a hit tank and destroying the shell. */
+	/** Handles a blocking impact by damaging a hit tank, reporting the detonation, and destroying the shell. */
 	void HandleImpact(const FHitResult& ImpactHit);
+
+	/** Moves a ghost toward its dead-reckoned target with smoothing. */
+	void TickGhostInterpolation(float DeltaSeconds);
 
 	/** Collision sphere that sweeps against walls and tanks. */
 	UPROPERTY(VisibleAnywhere, Category = "Shell")
@@ -54,8 +69,22 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Shell")
 	float MaxLifetimeSeconds = 5.0f;
 
+	/** How quickly a ghost shell closes on its dead-reckoned target. */
+	UPROPERTY(EditAnywhere, Category = "Shell|Ghost")
+	float GhostSmoothingSpeed = 12.0f;
+
+	/** Maximum seconds a ghost shell extrapolates past its last received update. */
+	UPROPERTY(EditAnywhere, Category = "Shell|Ghost")
+	float MaxExtrapolationSeconds = 0.5f;
+
 private:
 	TWeakObjectPtr<ATankDISTanks> OwnerTank;
+	FVector RemoteBaseLocation = FVector::ZeroVector;
+	FVector RemoteVelocityCmPerSec = FVector::ZeroVector;
+	float RemoteBaseYawDegrees = 0.0f;
+	double RemoteBaseWorldSeconds = 0.0;
 	float FlightTimeAccumulator = 0.0f;
 	float LifetimeSeconds = 0.0f;
+	bool bIsGhost = false;
+	bool bHasRemoteState = false;
 };

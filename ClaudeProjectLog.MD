@@ -345,3 +345,27 @@ Conceded that for a single-module game the split is mostly costume — no other 
 ### User Choices
 
 - Questioned the Public/Private convention; accepted keeping it with the understanding that for this project it is idiom rather than necessity.
+
+---
+
+## Entry 18 — 2026-09-24
+
+### Prompt
+
+> no, I didn't prefer the flat structure nor do I prefer this. That was mainly a question whether it had some other bearing than module space, but it seems not. start phase 4.
+
+### Claude's Answer
+
+Implemented phase 4 (DIS shell & kill flow):
+
+- **Shell as a DIS entity.** On fire, the router assigns the shell an entity ID (same site/app as the tank, entity numbers from 100 up, incrementing), emits a Fire PDU (firing entity, munition ID, event ID, muzzle position, velocity) and immediately starts publishing shell ESPDUs on the shell profile: 10 Hz heartbeat with the same mirrored-prediction thresholds as the tank — so steering the shell (velocity direction change) triggers a corrective ESPDU within a frame, per the Entry-7 design. The publish tracker was generalized into `FPublishTrackerDISTanks` (shared by tank and shell, and now also force-publishing on destroyed-state flips).
+- **Ghost shells.** Remote Fire PDUs seed a ghost shell instantly (one latency earlier than the first ESPDU); shell-range entity IDs route to ghost shells with collision fully disabled (visual-only — no collision authority on the non-owning side), flying on constant-velocity DR with tighter smoothing and 0.5 s max extrapolation; removed on Detonation receipt or a 2 s silence failsafe.
+- **Kill flow, standard DIS split.** The shooter's exact shell sweeps against the dead-reckoned ghost tank; on impact the shooter emits a Detonation PDU (EntityImpact with the victim's entity ID; EnvironmentObjectImpact for walls; Dud for lifetime expiry) and never decides the kill. The victim receives the Detonation, validates it — not already dying, detonation within 250 cm of its true position — and only then runs the death sequence and publishes `Damage=Destroyed` in its ESPDU appearance (force-published immediately). Rejections are logged with reasons (`AlreadyDying`/`OutOfTolerance`). The ghost tank on the other side mirrors the freeze-slide via normal DR and darkens from the published destroyed appearance (new `SetTintColor`/`SetDestroyedVisual` on the tank via dynamic material instances — infrastructure phase 5 reuses for slot colors).
+- Gameplay classes stay DIS-type-free: shells/tanks only call router notify methods with actors; the router reverse-maps ghost actors to entity IDs.
+- New log markers: `FirePublished/FireReceived`, `DetonationPublished/DetonationReceived`, `KillConfirmed`, `DetonationRejected`, `GhostShellSpawned/Timeout`.
+
+Verified: compiles; two-instance smoke test confirms tank ghosting still works. The fire/steer/kill flow needs a human playtest (no synthesized input per Entry 14's lesson) — both instances were left running for the user to test.
+
+### User Choices
+
+- Clarified the Public/Private question was informational, not a preference; layout stands.

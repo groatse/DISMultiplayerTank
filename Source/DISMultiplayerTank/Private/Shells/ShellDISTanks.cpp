@@ -3,8 +3,19 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "DISMultiplayerTank.h"
+#include "Networking/PDURouterDISTanks.h"
 #include "Tanks/TankDISTanks.h"
 #include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	/** Fetches the PDU router subsystem for an actor, or null outside a game instance. */
+	UPDURouterDISTanks* GetRouterForActor(const AActor* Actor)
+	{
+		UGameInstance* GameInstance = Actor && Actor->GetWorld() ? Actor->GetWorld()->GetGameInstance() : nullptr;
+		return GameInstance ? GameInstance->GetSubsystem<UPDURouterDISTanks>() : nullptr;
+	}
+}
 
 AShellDISTanks::AShellDISTanks()
 {
@@ -30,9 +41,19 @@ void AShellDISTanks::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	if (bIsGhost)
+	{
+		TickGhostInterpolation(DeltaSeconds);
+		return;
+	}
+
 	LifetimeSeconds += DeltaSeconds;
 	if (LifetimeSeconds > MaxLifetimeSeconds)
 	{
+		if (UPDURouterDISTanks* Router = GetRouterForActor(this))
+		{
+			Router->NotifyLocalShellDetonated(this, GetActorLocation(), nullptr);
+		}
 		Destroy();
 		return;
 	}
@@ -60,6 +81,26 @@ void AShellDISTanks::InitShell(ATankDISTanks* FiringTank)
 	}
 }
 
+void AShellDISTanks::InitAsGhost()
+{
+	bIsGhost = true;
+	SetActorEnableCollision(false);
+}
+
+void AShellDISTanks::ApplyRemoteShellState(const FVector& NewBaseLocation, float NewBaseYawDegrees, const FVector& NewVelocityCmPerSec, double ReceiveWorldSeconds)
+{
+	RemoteBaseLocation = NewBaseLocation;
+	RemoteBaseYawDegrees = NewBaseYawDegrees;
+	RemoteVelocityCmPerSec = NewVelocityCmPerSec;
+	RemoteBaseWorldSeconds = ReceiveWorldSeconds;
+	bHasRemoteState = true;
+}
+
+FVector AShellDISTanks::GetFlightVelocityCmPerSec() const
+{
+	return bIsGhost ? RemoteVelocityCmPerSec : GetActorForwardVector() * FlightSpeedCmPerSec;
+}
+
 void AShellDISTanks::SimulateFlightStep(float StepSeconds)
 {
 	if (OwnerTank.IsValid())
@@ -80,11 +121,32 @@ void AShellDISTanks::SimulateFlightStep(float StepSeconds)
 void AShellDISTanks::HandleImpact(const FHitResult& ImpactHit)
 {
 	ATankDISTanks* HitTank = Cast<ATankDISTanks>(ImpactHit.GetActor());
-	if (HitTank && HitTank != OwnerTank.Get())
+
+	// Ghost tanks are adjudicated by their owning instance via the Detonation PDU, not hit locally.
+	if (HitTank && HitTank != OwnerTank.Get() && !HitTank->IsGhost())
 	{
 		HitTank->HandleShellHit(this);
 	}
 
+	if (UPDURouterDISTanks* Router = GetRouterForActor(this))
+	{
+		Router->NotifyLocalShellDetonated(this, GetActorLocation(), ImpactHit.GetActor());
+	}
+
 	UE_LOG(LogDISTanks, Log, TEXT("ShellImpact Location=%s HitActor=%s"), *GetActorLocation().ToCompactString(), *GetNameSafe(ImpactHit.GetActor()));
 	Destroy();
+}
+
+void AShellDISTanks::TickGhostInterpolation(float DeltaSeconds)
+{
+	if (!bHasRemoteState || !GetWorld())
+	{
+		return;
+	}
+
+	// Constant-velocity dead reckoning with capped extrapolation, then smoothing toward the prediction.
+	const float ExtrapolationSeconds = FMath::Min(static_cast<float>(GetWorld()->GetTimeSeconds() - RemoteBaseWorldSeconds), MaxExtrapolationSeconds);
+	const FVector TargetLocation = RemoteBaseLocation + RemoteVelocityCmPerSec * ExtrapolationSeconds;
+	SetActorLocation(FMath::VInterpTo(GetActorLocation(), TargetLocation, DeltaSeconds, GhostSmoothingSpeed));
+	SetActorRotation(FMath::RInterpTo(GetActorRotation(), FRotator(0.0f, RemoteBaseYawDegrees, 0.0f), DeltaSeconds, GhostSmoothingSpeed));
 }

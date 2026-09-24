@@ -6,6 +6,7 @@
 
 class AShellDISTanks;
 class UBoxComponent;
+class UMaterialInstanceDynamic;
 class UStaticMeshComponent;
 
 /** Player tank pawn with classic Combat-style movement simulated on a fixed timestep. */
@@ -52,6 +53,15 @@ public:
 
 	/** Returns the velocity produced by the last simulation step in cm/s. */
 	FVector GetSimVelocityCmPerSec() const { return CurrentVelocityCmPerSec; }
+
+	/** Starts the death sequence for a kill adjudicated from a remote Detonation PDU. */
+	void HandleConfirmedKill();
+
+	/** Applies a base tint to the hull and barrel placeholder meshes. */
+	void SetTintColor(const FLinearColor& NewTintColor);
+
+	/** Toggles the darkened destroyed look mirrored from a remote tank's published appearance. */
+	void SetDestroyedVisual(bool bNewDestroyedVisual);
 
 protected:
 	/** Applies one fixed step of rotation and swept translation, or the forced death slide. */
@@ -111,7 +121,19 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Tank|Ghost")
 	float MaxExtrapolationSeconds = 1.0f;
 
+	/** Lazily creates the dynamic material instances used for tinting. */
+	void EnsureTintMaterials();
+
 private:
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> BodyMaterialInstance;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> BarrelMaterialInstance;
+
+	FLinearColor BaseTintColor = FLinearColor(0.5f, 0.5f, 0.5f);
+	bool bShowingDestroyedVisual = false;
+
 	TWeakObjectPtr<AShellDISTanks> ActiveShell;
 	FVector DeathSlideDirection = FVector::ZeroVector;
 	FVector CurrentVelocityCmPerSec = FVector::ZeroVector;

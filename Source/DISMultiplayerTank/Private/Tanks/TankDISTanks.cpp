@@ -3,6 +3,8 @@
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "DISMultiplayerTank.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Networking/PDURouterDISTanks.h"
 #include "Shells/ShellDISTanks.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -83,6 +85,13 @@ void ATankDISTanks::RequestFire()
 		NewShell->InitShell(this);
 		ActiveShell = NewShell;
 		UE_LOG(LogDISTanks, Log, TEXT("Fire Shooter=%s Location=%s"), *GetName(), *GetActorLocation().ToCompactString());
+
+		UGameInstance* GameInstance = GetWorld()->GetGameInstance();
+		UPDURouterDISTanks* Router = GameInstance ? GameInstance->GetSubsystem<UPDURouterDISTanks>() : nullptr;
+		if (Router && !bIsGhost)
+		{
+			Router->NotifyLocalShellFired(NewShell);
+		}
 	}
 }
 
@@ -115,6 +124,7 @@ void ATankDISTanks::SimulateMovementStep(float StepSeconds)
 		if (DeathSequenceRemainingSeconds <= 0.0f)
 		{
 			bDeathSequenceActive = false;
+			SetDestroyedVisual(false);
 			UE_LOG(LogDISTanks, Log, TEXT("TankRespawned Tank=%s Location=%s"), *GetName(), *GetActorLocation().ToCompactString());
 		}
 	}
@@ -135,6 +145,44 @@ void ATankDISTanks::SimulateMovementStep(float StepSeconds)
 void ATankDISTanks::InitAsGhost()
 {
 	bIsGhost = true;
+}
+
+void ATankDISTanks::HandleConfirmedKill()
+{
+	UE_LOG(LogDISTanks, Log, TEXT("TankDeath Victim=%s Shell=RemoteDetonation"), *GetName());
+	StartDeathSequence();
+}
+
+void ATankDISTanks::SetTintColor(const FLinearColor& NewTintColor)
+{
+	BaseTintColor = NewTintColor;
+	EnsureTintMaterials();
+	const FLinearColor AppliedColor = bShowingDestroyedVisual ? BaseTintColor * 0.15f : BaseTintColor;
+	BodyMaterialInstance->SetVectorParameterValue(TEXT("Color"), AppliedColor);
+	BarrelMaterialInstance->SetVectorParameterValue(TEXT("Color"), AppliedColor);
+}
+
+void ATankDISTanks::SetDestroyedVisual(bool bNewDestroyedVisual)
+{
+	if (bShowingDestroyedVisual == bNewDestroyedVisual)
+	{
+		return;
+	}
+
+	bShowingDestroyedVisual = bNewDestroyedVisual;
+	SetTintColor(BaseTintColor);
+}
+
+void ATankDISTanks::EnsureTintMaterials()
+{
+	if (!BodyMaterialInstance)
+	{
+		BodyMaterialInstance = BodyMesh->CreateAndSetMaterialInstanceDynamic(0);
+	}
+	if (!BarrelMaterialInstance)
+	{
+		BarrelMaterialInstance = BarrelMesh->CreateAndSetMaterialInstanceDynamic(0);
+	}
 }
 
 void ATankDISTanks::ApplyRemoteTankState(const FVector& NewBaseLocation, float NewBaseYawDegrees, const FVector& NewVelocityCmPerSec, double ReceiveWorldSeconds)
@@ -166,6 +214,7 @@ void ATankDISTanks::StartDeathSequence()
 {
 	bDeathSequenceActive = true;
 	DeathSequenceRemainingSeconds = DeathSequenceSeconds;
+	SetDestroyedVisual(true);
 
 	const float SlideAngleDegrees = FMath::FRandRange(0.0f, 360.0f);
 	DeathSlideDirection = FRotator(0.0f, SlideAngleDegrees, 0.0f).Vector();
