@@ -17,3 +17,20 @@ Created `ClaudeProjectLog.MD` in the project root. Going forward, every prompt, 
 ### User Choices
 
 - Decided to maintain a project log (`ClaudeProjectLog.MD`) documenting the full collaboration for the interview project.
+
+---
+
+## Entry 2 — 2026-09-24
+
+### Prompt
+
+> yes, set up git with the UE5 gitignore - include the log in the repo
+
+### Claude's Answer
+
+Initialized a git repository in the project root and created a UE5-appropriate `.gitignore` excluding generated/cache directories (`Binaries/`, `Intermediate/`, `DerivedDataCache/`, `Saved/`, `Build/`), IDE folders (`.vs/`, `.idea/`, `.vscode/`), the auto-generated `.sln`, and OS cruft. Made the initial commit (`99eb760`) containing 12 files: the C++ source skeleton, config files, the `.uproject`, the `.gitignore`, and `ClaudeProjectLog.MD`. Noted that `Content/` is currently empty, so nothing from it was staged — expected for a fresh C++ project.
+
+### User Choices
+
+- Accepted Claude's suggestion to set up version control with a UE5 `.gitignore`.
+- Chose to track `ClaudeProjectLog.MD` in the repository.
