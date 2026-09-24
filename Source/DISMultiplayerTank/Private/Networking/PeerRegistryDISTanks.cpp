@@ -50,11 +50,19 @@ int32 UPeerRegistryDISTanks::GetSlotForApplication(int32 ApplicationID) const
 
 FLinearColor UPeerRegistryDISTanks::GetSlotColor(int32 SlotIndex)
 {
-	static const FLinearColor SlotColors[] = {
+	static const FLinearColor ClassicSlotColors[] = {
 		FLinearColor(0.05f, 0.45f, 0.05f),
 		FLinearColor(0.55f, 0.05f, 0.05f),
 		FLinearColor(0.05f, 0.15f, 0.55f),
 		FLinearColor(0.55f, 0.45f, 0.05f)
 	};
-	return SlotColors[FMath::Clamp(SlotIndex, 0, static_cast<int32>(UE_ARRAY_COUNT(SlotColors)) - 1)];
+
+	if (SlotIndex >= 0 && SlotIndex < static_cast<int32>(UE_ARRAY_COUNT(ClassicSlotColors)))
+	{
+		return ClassicSlotColors[SlotIndex];
+	}
+
+	// Slots past the classic four get golden-angle-spaced hues so any N stays distinguishable.
+	const float HueDegrees = FMath::Fmod(FMath::Max(SlotIndex, 0) * 137.5f, 360.0f);
+	return FLinearColor::MakeFromHSV8(static_cast<uint8>(HueDegrees / 360.0f * 255.0f), 220, 130);
 }

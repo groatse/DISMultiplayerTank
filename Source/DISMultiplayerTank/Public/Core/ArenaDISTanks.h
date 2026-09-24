@@ -17,11 +17,11 @@ class DISMULTIPLAYERTANK_API AArenaDISTanks : public AActor
 public:
 	AArenaDISTanks();
 
-	/** Returns the world-space spawn transform for the given player slot. */
+	/** Returns the world-space spawn transform for any player slot, facing the arena center and wrapping past the position count. */
 	FTransform GetSpawnTransform(int32 SlotIndex) const;
 
-	/** Returns the number of available spawn slots. */
-	int32 GetSpawnSlotCount() const { return SpawnTransforms.Num(); }
+	/** Returns the number of distinct spawn positions. */
+	int32 GetSpawnSlotCount() const { return SpawnPositions.Num(); }
 
 protected:
 	/** Creates one cube-based wall component with the given name, center, and scale. */
@@ -47,7 +47,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Arena")
 	float CameraHeightCm = 3200.0f;
 
-	/** World-space spawn transform per player slot. */
+	/** Spawn positions around the arena perimeter, indexed by player slot. */
 	UPROPERTY(EditAnywhere, Category = "Arena")
-	TArray<FTransform> SpawnTransforms;
+	TArray<FVector> SpawnPositions;
 };

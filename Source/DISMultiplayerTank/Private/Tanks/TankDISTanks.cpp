@@ -87,6 +87,7 @@ void ATankDISTanks::RequestFire()
 	if (NewShell)
 	{
 		NewShell->InitShell(this);
+		NewShell->SetTintColor(BaseTintColor);
 		ActiveShell = NewShell;
 		UE_LOG(LogDISTanks, Log, TEXT("Fire Shooter=%s Location=%s"), *GetName(), *GetActorLocation().ToCompactString());
 

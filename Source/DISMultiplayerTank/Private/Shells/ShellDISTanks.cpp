@@ -3,6 +3,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "DISMultiplayerTank.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Networking/PDURouterDISTanks.h"
 #include "Tanks/TankDISTanks.h"
 #include "UObject/ConstructorHelpers.h"
@@ -29,10 +30,13 @@ AShellDISTanks::AShellDISTanks()
 	SetRootComponent(CollisionSphere);
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMeshFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	// The engine sphere's default slot is the parameterless WorldGridMaterial, so assign the parameterized shape material for tinting.
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> TintableMaterialFinder(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
 	ShellMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShellMesh"));
 	ShellMesh->SetupAttachment(CollisionSphere);
 	ShellMesh->SetStaticMesh(SphereMeshFinder.Object);
+	ShellMesh->SetMaterial(0, TintableMaterialFinder.Object);
 	// Oversized visual relative to the 12cm collision sphere so the fast shell stays readable from the top-down camera.
 	ShellMesh->SetRelativeScale3D(FVector(0.5f));
 	ShellMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -100,6 +104,15 @@ void AShellDISTanks::ApplyRemoteShellState(const FVector& NewBaseLocation, float
 FVector AShellDISTanks::GetFlightVelocityCmPerSec() const
 {
 	return bIsGhost ? RemoteVelocityCmPerSec : GetActorForwardVector() * FlightSpeedCmPerSec;
+}
+
+void AShellDISTanks::SetTintColor(const FLinearColor& NewTintColor)
+{
+	if (!ShellMaterialInstance)
+	{
+		ShellMaterialInstance = ShellMesh->CreateAndSetMaterialInstanceDynamic(0);
+	}
+	ShellMaterialInstance->SetVectorParameterValue(TEXT("Color"), NewTintColor);
 }
 
 void AShellDISTanks::SimulateFlightStep(float StepSeconds)

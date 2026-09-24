@@ -60,6 +60,9 @@ public:
 	/** Applies a base tint to the hull and barrel placeholder meshes. */
 	void SetTintColor(const FLinearColor& NewTintColor);
 
+	/** Returns the tank's current base tint. */
+	const FLinearColor& GetTintColor() const { return BaseTintColor; }
+
 	/** Toggles the darkened destroyed look mirrored from a remote tank's published appearance. */
 	void SetDestroyedVisual(bool bNewDestroyedVisual);
 

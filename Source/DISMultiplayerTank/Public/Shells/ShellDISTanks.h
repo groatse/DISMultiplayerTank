@@ -5,6 +5,7 @@
 #include "ShellDISTanks.generated.h"
 
 class ATankDISTanks;
+class UMaterialInstanceDynamic;
 class USphereComponent;
 class UStaticMeshComponent;
 
@@ -34,6 +35,9 @@ public:
 
 	/** Returns the current flight velocity in cm/s. */
 	FVector GetFlightVelocityCmPerSec() const;
+
+	/** Tints the shell with its owner's slot color. */
+	void SetTintColor(const FLinearColor& NewTintColor);
 
 protected:
 	/** Applies one fixed step of steering and swept flight, detonating on any blocking hit. */
@@ -78,6 +82,9 @@ protected:
 	float MaxExtrapolationSeconds = 0.5f;
 
 private:
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> ShellMaterialInstance;
+
 	TWeakObjectPtr<ATankDISTanks> OwnerTank;
 	FVector RemoteBaseLocation = FVector::ZeroVector;
 	FVector RemoteVelocityCmPerSec = FVector::ZeroVector;

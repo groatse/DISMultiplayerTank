@@ -395,6 +395,10 @@ void UPDURouterDISTanks::HandleRemoteShellState(const FEntityStatePDU& EntitySta
 		}
 		GhostShell->InitAsGhost();
 		GhostEntry.GhostActor = GhostShell;
+		if (UPeerRegistryDISTanks* Registry = GetGameInstance()->GetSubsystem<UPeerRegistryDISTanks>())
+		{
+			GhostShell->SetTintColor(UPeerRegistryDISTanks::GetSlotColor(Registry->GetSlotForApplication(EntityStatePDU.EntityID.Application)));
+		}
 		UE_LOG(LogDISTanks, Log, TEXT("GhostShellSpawned Entity=%s Location=%s"), *DISTanksProtocol::EntityIDToString(EntityStatePDU.EntityID), *GhostLocationCm.ToCompactString());
 	}
 

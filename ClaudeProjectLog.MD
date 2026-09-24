@@ -416,3 +416,25 @@ Verified end-to-end: both instances log `WaitingForPeers` → `PeerJoined` → `
 
 - Confirmed the lag fix works.
 - Death sequence redesigned: bounce away from the killer within a 120° arc plus random rotation (in place of the fully random slide).
+
+---
+
+## Entry 21 — 2026-09-24
+
+### Prompt
+
+> Make spawning and tinting for N players
+
+### Claude's Answer
+
+Generalized both systems to N players per the Entry-9 groundwork:
+
+- **Spawning:** the arena's two fixed spawn transforms became a slot-indexed array of eight perimeter positions (mid-edges first so the classic duel keeps its layout, then corners), with facing computed toward the arena center and indices wrapping modulo the position count — any slot number resolves to a sensible spawn.
+- **Tank colors:** the classic four (green/red/blue/yellow) remain for slots 0–3; slots beyond get golden-angle-spaced HSV hues so any N stays distinguishable.
+- **Shell tinting (new):** shells now carry their owner's slot color — needed for attribution once more than two tanks fight. Owner-side shells tint from the firing tank's color; ghost shells tint from the owning application's negotiated slot. Same engine-material gotcha as tanks applied (sphere ships with parameterless WorldGridMaterial; assigned BasicShapeMaterial).
+
+Verified with a live three-instance test: tokens negotiated slots 0/1/2 deterministically on all three machines (including the re-slot path — the third instance corrected itself from slot 1 to slot 2 as the second peer became known), and all three windows rendered the identical scene with green/red/blue tanks at the mid-west, mid-east, and mid-south spawns.
+
+### User Choices
+
+- Requested full N-player support for spawning and tinting (beyond the N-shaped data structures already in place).

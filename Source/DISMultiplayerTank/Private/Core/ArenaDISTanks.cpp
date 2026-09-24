@@ -35,13 +35,27 @@ AArenaDISTanks::AArenaDISTanks()
 	TopDownCamera->SetRelativeRotation(FRotator(-90.0f, 0.0f, 0.0f));
 	TopDownCamera->SetFieldOfView(50.0f);
 
-	SpawnTransforms.Add(FTransform(FRotator(0.0f, 90.0f, 0.0f), FVector(0.0f, -800.0f, 60.0f)));
-	SpawnTransforms.Add(FTransform(FRotator(0.0f, -90.0f, 0.0f), FVector(0.0f, 800.0f, 60.0f)));
+	// Perimeter spawn positions ordered so the classic two-player duel uses the mid-edge pair first.
+	SpawnPositions.Add(FVector(0.0f, -800.0f, 60.0f));
+	SpawnPositions.Add(FVector(0.0f, 800.0f, 60.0f));
+	SpawnPositions.Add(FVector(-550.0f, 0.0f, 60.0f));
+	SpawnPositions.Add(FVector(550.0f, 0.0f, 60.0f));
+	SpawnPositions.Add(FVector(-550.0f, -800.0f, 60.0f));
+	SpawnPositions.Add(FVector(550.0f, 800.0f, 60.0f));
+	SpawnPositions.Add(FVector(550.0f, -800.0f, 60.0f));
+	SpawnPositions.Add(FVector(-550.0f, 800.0f, 60.0f));
 }
 
 FTransform AArenaDISTanks::GetSpawnTransform(int32 SlotIndex) const
 {
-	return SpawnTransforms.IsValidIndex(SlotIndex) ? SpawnTransforms[SlotIndex] : FTransform::Identity;
+	if (SpawnPositions.Num() == 0 || SlotIndex < 0)
+	{
+		return FTransform::Identity;
+	}
+
+	const FVector SpawnLocation = SpawnPositions[SlotIndex % SpawnPositions.Num()];
+	const FVector TowardCenter(-SpawnLocation.X, -SpawnLocation.Y, 0.0f);
+	return FTransform(FRotator(0.0f, TowardCenter.Rotation().Yaw, 0.0f), SpawnLocation);
 }
 
 UStaticMeshComponent* AArenaDISTanks::CreateWallComponent(const TCHAR* ComponentName, UStaticMesh* CubeMesh, const FVector& RelativeCenter, const FVector& CubeScale)
