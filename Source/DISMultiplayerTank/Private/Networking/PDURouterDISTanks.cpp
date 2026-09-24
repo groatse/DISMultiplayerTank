@@ -410,9 +410,19 @@ bool UPDURouterDISTanks::HandleTicker(float DeltaSeconds)
 	EvaluateLocalTankPublish();
 	EvaluateLocalShellPublish();
 
+	SmoothedFrameSeconds = FMath::Lerp(SmoothedFrameSeconds, FMath::Max(DeltaSeconds, 0.0001f), 0.05f);
+
 	if (UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr)
 	{
-		RemoveStaleGhosts(World->GetTimeSeconds());
+		const double NowWorldSeconds = World->GetTimeSeconds();
+		RemoveStaleGhosts(NowWorldSeconds);
+
+		// Periodic health marker so choppy sessions are diagnosable from logs.
+		if (NowWorldSeconds - LastHealthLogSeconds > 10.0)
+		{
+			LastHealthLogSeconds = NowWorldSeconds;
+			UE_LOG(LogDISTanks, Log, TEXT("RouterHealth FPS=%.0f GhostTanks=%d GhostShells=%d"), 1.0f / SmoothedFrameSeconds, GhostTanks.Num(), GhostShells.Num());
+		}
 	}
 
 	return true;

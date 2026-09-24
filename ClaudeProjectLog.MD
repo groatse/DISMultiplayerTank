@@ -369,3 +369,27 @@ Verified: compiles; two-instance smoke test confirms tank ghosting still works. 
 ### User Choices
 
 - Clarified the Public/Private question was informational, not a preference; layout stands.
+
+---
+
+## Entry 19 — 2026-09-24
+
+### Prompt
+
+> there was so much delay in the session that the movement came about 1s after and the shell isn't really visible. death was lagged by 2seconds
+
+(Follow-up mid-investigation:)
+
+> The movement is very choppy, I think the update rate is 1s
+
+### Claude's Answer
+
+Diagnosed the lag as frame time, not protocol: on localhost the network is ~0, and reading the plugin's receive path showed it adds at most one frame (socket-blocking receiver thread, game-thread dispatch). The "update rate ~1 s" chop meant the receiving window was rendering at roughly 1 FPS — at that frame time every hop quantizes to ~1 s (movement one hop = 1 s; death two hops = 2 s; a shell alive ~1 s gets about one rendered frame). Cause: three UE processes (editor + two game instances) contending for one GPU with a renderer configured far beyond this flat top-down scene — Lumen GI, virtual shadow maps, ray tracing, Substrate, TSR — plus first-session shader/PSO compilation stalls.
+
+Fixes: stripped the renderer in `DefaultEngine.ini` (GI/reflections off, virtual shadow maps off, ray tracing off, Substrate off, mesh distance fields off, FXAA instead of TSR) and added a frame cap setting; enlarged the shell's visual to a 50 cm Combat-style blob (collision unchanged at 12 cm); added a periodic `RouterHealth FPS=... GhostTanks=... GhostShells=...` log marker so frame health is diagnosable from logs — and is available to the phase-7 harness.
+
+Measured result on relaunch: instance A ~360 FPS, instance B ~190 FPS (up from ~1) — pipeline hops now single-digit milliseconds. Instances left running for the user to re-test.
+
+### User Choices
+
+- Reported the latency/choppiness and the 1 s update-rate observation that pinpointed the diagnosis; re-test pending.

@@ -33,7 +33,8 @@ AShellDISTanks::AShellDISTanks()
 	ShellMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShellMesh"));
 	ShellMesh->SetupAttachment(CollisionSphere);
 	ShellMesh->SetStaticMesh(SphereMeshFinder.Object);
-	ShellMesh->SetRelativeScale3D(FVector(0.24f));
+	// Oversized visual relative to the 12cm collision sphere so the fast shell stays readable from the top-down camera.
+	ShellMesh->SetRelativeScale3D(FVector(0.5f));
 	ShellMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 

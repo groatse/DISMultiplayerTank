@@ -136,4 +136,6 @@ private:
 	int32 UdpPort = 3000;
 	int32 NextShellEntityNumber = 0;
 	int32 NextEventNumber = 1;
+	float SmoothedFrameSeconds = 1.0f / 60.0f;
+	double LastHealthLogSeconds = 0.0;
 };
