@@ -313,3 +313,19 @@ Verified end-to-end on localhost: two instances each opened sockets, published, 
 ### User Choices
 
 - (None this exchange — phase executed per the standing plan.)
+
+---
+
+## Entry 16 — 2026-09-24
+
+### Prompt
+
+> reorganize files into two root folders private (for .cpp) and public (for .h) with the same subfolder structure
+
+### Claude's Answer
+
+Reorganized the module into the standard UE `Public/`/`Private/` layout: all headers under `Public/{Core,Tanks,Shells,Networking}/` plus `Public/DISMultiplayerTank.h`, all .cpp files under the mirrored `Private/` tree, `Build.cs` at the module root. Removed the now-obsolete module-root include-path workaround from `Build.cs` — UBT auto-registers Public/Private, so all existing `#include "Folder/File.h"` paths kept working unchanged. Rebuilt successfully and regenerated IDE project files. `Docs/ArchitecturePlan.MD` folder diagram updated to match.
+
+### User Choices
+
+- Module source layout: standard UE Public (.h) / Private (.cpp) root folders with mirrored subfolder structure.

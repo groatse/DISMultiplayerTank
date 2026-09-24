@@ -8,9 +8,6 @@ public class DISMultiplayerTank : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		// Allow includes rooted at the module directory (e.g. "Tanks/TankDISTanks.h").
-		PublicIncludePaths.Add(ModuleDirectory);
-
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "DISRuntime", "Sockets", "Networking" });

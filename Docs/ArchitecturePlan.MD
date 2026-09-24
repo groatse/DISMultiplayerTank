@@ -8,14 +8,16 @@ Single runtime module (`DISMultiplayerTank`) — `Source/` root keeps exactly it
 
 ```
 Source/DISMultiplayerTank/
-├── DISMultiplayerTank.Build.cs        (existing)
-├── DISMultiplayerTank.h / .cpp        (existing)
-├── Core/          — game framework classes (mode, controller)
-├── Tanks/         — tank pawn
-├── Shells/        — shell actor
-├── Networking/    — DIS integration: peer registry, PDU routing, codecs, shared types, net conditioner
-├── Testing/       — test-only helpers (autopilot)
-└── UI/            — HUD
+├── DISMultiplayerTank.Build.cs
+├── Public/        — all headers (module header + mirrored subfolders below)
+├── Private/       — all .cpp files (same subfolder structure)
+│   with subfolders in both:
+│   ├── Core/          — game framework classes (mode, controller, arena)
+│   ├── Tanks/         — tank pawn
+│   ├── Shells/        — shell actor
+│   ├── Networking/    — DIS integration: peer registry, PDU routing, shared types, net conditioner
+│   ├── Testing/       — test-only helpers (autopilot)
+│   └── UI/            — HUD
 ```
 
 Additionally `Tools/` at the project root holds the network test orchestration script(s).
