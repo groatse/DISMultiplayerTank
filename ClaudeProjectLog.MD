@@ -329,3 +329,19 @@ Reorganized the module into the standard UE `Public/`/`Private/` layout: all hea
 ### User Choices
 
 - Module source layout: standard UE Public (.h) / Private (.cpp) root folders with mirrored subfolder structure.
+
+---
+
+## Entry 17 — 2026-09-24
+
+### Prompt
+
+> before we go to phase 4, isn't that public private thing kinda obsolete ? why does UE/Epic insist upon it?
+
+### Claude's Answer
+
+Conceded that for a single-module game the split is mostly costume — no other module consumes our Public headers, so the compiler treats both folders identically. Explained why it is not obsolete for Epic: in UE the split is a build-system-enforced module boundary, not OOP visibility. UnrealBuildTool adds only a dependency's `Public/` folder to the dependent's include paths, so `Private/` headers cannot be included across modules at all. At engine scale (~1,000 modules) that provides: (1) a real API surface paired with `MODULENAME_API` DLL-export macros; (2) build-graph hygiene — private edits never recompile dependent modules, keeping iteration fast; (3) distribution without source — installed engines and binary marketplace plugins ship Public headers plus compiled libs while Private doesn't exist on disk (GRILL DIS's prebuilt OpenDIS core being a nearby example). Kept it for this project because the cost is zero post-migration, it removed the Build.cs include workaround, it pre-draws the boundary if Networking ever becomes its own module, and reviewers read it as idiomatic UE.
+
+### User Choices
+
+- Questioned the Public/Private convention; accepted keeping it with the understanding that for this project it is idiom rather than necessity.
