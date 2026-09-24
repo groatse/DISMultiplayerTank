@@ -13,9 +13,12 @@ Source/DISMultiplayerTank/
 ├── Core/          — game framework classes (mode, controller)
 ├── Tanks/         — tank pawn
 ├── Shells/        — shell actor
-├── Networking/    — DIS integration: peer registry, PDU routing, codecs, shared types
+├── Networking/    — DIS integration: peer registry, PDU routing, codecs, shared types, net conditioner
+├── Testing/       — test-only helpers (autopilot)
 └── UI/            — HUD
 ```
+
+Additionally `Tools/` at the project root holds the network test orchestration script(s).
 
 ## Naming convention
 
@@ -91,6 +94,27 @@ The single place that touches GRILL DIS plumbing:
 - **Localhost twin instances:** two processes sharing a UDP broadcast port need socket reuse; verify GRILL DIS supports it, else document distinct-port config for local testing.
 - **Plugin DR fidelity for fast shells:** if plugin dead reckoning proves too coarse for shell speeds, fall back to routing shell ESPDUs manually through `UPDURouterDISTanks`.
 
+## Network test harness (semi-automated lag-condition testing)
+
+All PDUs pass through `UPDURouterDISTanks`, which makes application-layer network simulation trivial and deterministic — no OS-level tooling required:
+
+**`FNetConditionerDISTanks`** (plain struct/class inside `Networking/`)
+- A conditioning stage on the router's inbound path (optionally outbound too): configurable added latency, jitter, drop probability, duplication, and reordering applied to PDUs before they reach the game.
+- Driven by command line / console variables: `-NetSimLatencyMs=250 -NetSimJitterMs=80 -NetSimLossPct=30 -NetSimSeed=42`. Seeded RNG so runs are reproducible.
+- Compiled in but inert (zero config = passthrough); costs one queue check per receive.
+
+**`UAutoPilotDISTanks`** (UActorComponent, `Testing/`)
+- Test-only scripted driver: feeds deterministic, seeded input sequences (drive patterns + periodic fire, including steer-after-fire to exercise steerable shells) into the owned tank so two instances can play unattended. Enabled via `-AutoPilot`.
+
+**Structured log markers + orchestration script (`Tools/RunNetTest.ps1`)**
+- Game logs machine-parseable markers on a dedicated category (`LogDISTanks`): kill events with attribution, death counter merges, round resets, periodic remote-entity DR error samples (own true position vs. what the peer would dead-reckon).
+- The PowerShell script launches two instances with a named condition profile (baseline / latency / loss / combined), lets the autopilots fight for N minutes, then parses both logs and asserts: final death counters identical on both instances, no shell alive past its max lifetime, no desync in round number, DR error percentiles within tolerance. Exit code = pass/fail per profile.
+- Semi-automated by design: run one command per profile, read a short pass/fail table; watching the two windows during the run doubles as visual QA material.
+
+**Optional cross-check:** [clumsy](https://jagt.github.io/clumsy/) (WinDivert-based) can mangle real localhost UDP packets to validate that the app-layer conditioner's behavior matches genuine OS-level loss/lag. Manual, admin-rights, used once as a sanity check — not part of the automated loop. (UE's built-in `Net PktLoss/PktLag` emulation applies only to the Unreal NetDriver and does not touch GRILL DIS's raw sockets, so it is not usable here.)
+
+Standard profiles: `Baseline` (clean), `Latency` (150 ms ± 50), `Loss` (20 %), `Nasty` (250 ms ± 100, 30 % loss, 5 % duplicate, reorder on). 
+
 ## Build order
 
 1. **Local gameplay core** — folders, `ATankDISTanks` movement + camera + arena map with walls; playable single instance.
@@ -99,6 +123,9 @@ The single place that touches GRILL DIS plumbing:
 4. **DIS shell & kill flow** — shell as DIS entity, Fire/Detonation PDUs, victim adjudication + published death.
 5. **Identity & auto-start** — `UPeerRegistryDISTanks` token negotiation, slots, spawn/color assignment, auto-start at ≥2 peers.
 6. **Score & round flow** — per-killer counters, round number, HUD, 10-kill reset.
-7. **Ship** — packaged build, README, technical notes, gameplay/sync video.
+7. **Network test harness** — `FNetConditionerDISTanks`, `UAutoPilotDISTanks`, log markers, `Tools/RunNetTest.ps1`, run all profiles and record results.
+8. **Docs** — README (build/run steps) and technical notes (DIS implementation, message/event flow, authority model, sync approach, assumptions, limitations, improvements, third-party/AI-tool usage, test results per lag profile).
 
 Each step ends in a runnable, committable state.
+
+**Out of scope for Claude (user handles):** packaged executable build, gameplay/sync video/screenshots.

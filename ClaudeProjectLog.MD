@@ -213,3 +213,27 @@ Defended the subsystem choice: `UGameInstanceSubsystem`s have the exact same lif
 ### User Choices
 
 - Questioned the subsystem-vs-custom-GameInstance choice; subsystem approach stands per the rationale above.
+
+---
+
+## Entry 12 — 2026-09-24
+
+### Prompt
+
+> edit the architecture implementation plan: don't do the ship part, I'll do that apart from the README and technical notes. then for integration tests of the network code I want to have it atleast semi-automated for different lag conditions (high packet loss - high latency). give suggestions.
+
+### Claude's Answer
+
+Updated `Docs/ArchitecturePlan.MD`: packaging and gameplay video/screenshots are now explicitly the user's tasks; Claude still delivers README and technical notes (final build step 8). Added a network test harness section and a new build step 7 for it. Suggested (and planned) approach:
+
+1. **Application-layer network conditioner (`FNetConditionerDISTanks`)** — because all PDUs flow through `UPDURouterDISTanks`, a conditioning stage on the inbound path can apply configurable latency, jitter, drop, duplication, and reordering with a seeded RNG, driven by command line (`-NetSimLatencyMs`, `-NetSimLossPct`, `-NetSimSeed`, ...). Deterministic and reproducible, no OS tooling or admin rights, inert when unconfigured. (UE's built-in packet emulation was ruled out — it only affects the Unreal NetDriver, not GRILL DIS's raw sockets.)
+2. **`UAutoPilotDISTanks` (Testing/)** — seeded scripted driver feeding deterministic movement/fire input (including steer-after-fire) so two instances fight unattended via `-AutoPilot`.
+3. **Structured log markers + `Tools/RunNetTest.ps1`** — machine-parseable `LogDISTanks` markers (kills with attribution, counter merges, round resets, periodic DR error samples); the script launches two instances with a named lag profile, waits, parses both logs, and asserts cross-instance agreement (identical final death counters, bounded shell lifetime, matching round numbers, DR error percentiles in tolerance). Exit code per profile = semi-automated pass/fail.
+4. **Optional one-off cross-check with clumsy (WinDivert)** to validate the app-layer sim against real OS-level packet mangling; manual, not in the automated loop.
+
+Standard profiles defined: Baseline, Latency (150 ms ± 50), Loss (20 %), Nasty (250 ms ± 100 + 30 % loss + duplicates + reorder). Technical notes will include test results per profile.
+
+### User Choices
+
+- Packaging the executable build and producing the gameplay video/screenshots are the user's own tasks; Claude delivers README + technical notes.
+- Network integration testing must be at least semi-automated across lag conditions (high packet loss, high latency); accepted suggestions pending review.
