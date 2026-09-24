@@ -3,9 +3,12 @@
 #include "Core/ArenaDISTanks.h"
 #include "Core/PlayerControllerDISTanks.h"
 #include "DISMultiplayerTank.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Networking/PDURouterDISTanks.h"
 #include "Networking/PeerRegistryDISTanks.h"
 #include "Tanks/TankDISTanks.h"
+#include "Testing/AutoPilotDISTanks.h"
 #include "UI/HUDDISTanks.h"
 
 AGameModeDISTanks::AGameModeDISTanks()
@@ -38,6 +41,16 @@ APawn* AGameModeDISTanks::SpawnDefaultPawnFor_Implementation(AController* NewPla
 		Registry->OnRoundChanged.AddUObject(this, &AGameModeDISTanks::HandleRoundChanged);
 	}
 	RefreshMatchState();
+
+	// The -AutoPilot flag lets the network test harness fight unattended.
+	if (LocalTankPawn.IsValid() && FParse::Param(FCommandLine::Get(), TEXT("AutoPilot")))
+	{
+		int32 AutoPilotSeed = Registry ? Registry->GetLocalApplicationID() : 1;
+		FParse::Value(FCommandLine::Get(), TEXT("AutoPilotSeed="), AutoPilotSeed);
+		UAutoPilotDISTanks* AutoPilot = NewObject<UAutoPilotDISTanks>(LocalTankPawn.Get(), TEXT("AutoPilot"));
+		AutoPilot->RegisterComponent();
+		AutoPilot->InitAutoPilot(AutoPilotSeed);
+	}
 
 	return NewPawn;
 }

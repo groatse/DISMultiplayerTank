@@ -462,3 +462,26 @@ Verified: compiles; two instances show the HUD with complementary local-player m
 ### User Choices
 
 - (None this exchange — phase executed per the standing plan.)
+
+---
+
+## Entry 23 — 2026-09-24
+
+### Prompt
+
+> works, proceed
+
+### Claude's Answer
+
+Implemented phase 7 (semi-automated network test harness):
+
+- **`FNetConditionerDISTanks` (Networking/)** — inbound conditioning stage in the PDU router, applied to all three consumed PDU types: seeded (default seed 42, `-NetSimSeed=`) loss, latency, jitter, and duplication via `-NetSimLatencyMs/-NetSimJitterMs/-NetSimLossPct/-NetSimDupPct`; jitter produces natural reordering (no separate knob needed). Delayed PDUs queue with due times and drain each tick; fully inert with no arguments. Router handlers split into thin conditioned receivers (`Handle*`) and the real logic (`Process*`).
+- **`UAutoPilotDISTanks` (Testing/)** — seeded random driver attached to the local tank when `-AutoPilot` is passed (seed = session token or `-AutoPilotSeed=`): forward-biased maneuvers held 0.5–2.5 s, fire every 1.5–4 s, turning continues through shots to exercise the steerable-shell path.
+- **New assertion markers:** `ScoreView Round=N Scores=app:score;...` logged by the registry on every score change (each instance's full view — the cross-instance ground truth), and `RouterHealth` extended with dead-reckoning error stats (samples/mean/max per 10 s window, measured as correction distance whenever a tank ESPDU arrives).
+- **`Tools/RunNetTest.ps1`** — one command per profile (Baseline / Latency 150±50 ms / Loss 20 % / Nasty 250±100 ms + 30 % loss + 5 % dup): clears logs, launches two autopilot instances with the profile, waits, kills them, then asserts: both matches started, no fatal errors, final score views converge across instances (with a recent-window tolerance for shutdown-timing races), and DR mean error under 400 cm. Prints notes + PASS/FAIL, exit code for CI-style use.
+
+Validated end-to-end with real runs: **Baseline PASS** (kill adjudicated, scores converged, DR mean 14–23 cm, max 40 cm) and **Nasty PASS** (kill adjudicated under 250 ms ± 100 jitter with 30 % loss and duplicates; scores converged; DR mean 16–20 cm with worst correction 257 cm ≈ latency × tank speed, matching the bounded-by-latency design claim from Entry 7).
+
+### User Choices
+
+- Confirmed phase 6 works by playtesting; approved proceeding to phase 7.

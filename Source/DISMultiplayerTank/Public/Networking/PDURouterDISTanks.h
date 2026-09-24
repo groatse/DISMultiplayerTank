@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
+#include "Networking/NetConditionerDISTanks.h"
 #include "Networking/PDUTypesDISTanks.h"
 #include "PDUs/EntityInfoFamily/GRILL_EntityStatePDU.h"
 #include "PDUs/WarfareFamily/GRILL_DetonationPDU.h"
@@ -52,17 +53,26 @@ protected:
 	/** Forces the local tank state onto the wire on the next tick. */
 	void ForceTankPublish() { TankTracker.bHasPublished = false; }
 
-	/** Routes a received Entity State PDU to the matching ghost tank or shell, spawning one for unknown remote entities. */
+	/** Receives Entity State PDUs from the processor and passes them through the net conditioner. */
 	UFUNCTION()
 	void HandleEntityStatePDU(FEntityStatePDU EntityStatePDU);
 
-	/** Spawns the ghost shell for a remote fire event before its first Entity State PDU arrives. */
+	/** Receives Fire PDUs from the processor and passes them through the net conditioner. */
 	UFUNCTION()
 	void HandleFirePDU(FFirePDU FirePDU);
 
-	/** Removes the ghost shell for the detonated munition and adjudicates the hit when the local tank is the target. */
+	/** Receives Detonation PDUs from the processor and passes them through the net conditioner. */
 	UFUNCTION()
 	void HandleDetonationPDU(FDetonationPDU DetonationPDU);
+
+	/** Routes an Entity State PDU to the matching ghost tank or shell, spawning one for unknown remote entities. */
+	void ProcessEntityStatePDU(const FEntityStatePDU& EntityStatePDU);
+
+	/** Spawns the ghost shell for a remote fire event before its first Entity State PDU arrives. */
+	void ProcessFirePDU(const FFirePDU& FirePDU);
+
+	/** Removes the ghost shell for the detonated munition and adjudicates the hit when the local tank is the target. */
+	void ProcessDetonationPDU(const FDetonationPDU& DetonationPDU);
 
 	/** Opens the broadcast send socket and the shared-port loopback-friendly receive socket. */
 	void OpenSockets();
@@ -141,4 +151,8 @@ private:
 	int32 NextEventNumber = 1;
 	float SmoothedFrameSeconds = 1.0f / 60.0f;
 	double LastHealthLogSeconds = 0.0;
+	FNetConditionerDISTanks NetConditioner;
+	int32 DRSampleCount = 0;
+	float DRErrorSumCm = 0.0f;
+	float DRErrorMaxCm = 0.0f;
 };

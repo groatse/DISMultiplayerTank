@@ -82,6 +82,9 @@ public:
 	TArray<int32> GetAllApplicationIDsBySlot() const;
 
 private:
+	/** Logs this instance's full score view as a parseable marker for the network test harness. */
+	void LogScoreView() const;
+
 	/** Starts the given round, clearing every counter on this instance. */
 	void AdvanceRound(int32 NewRoundNumber);
 

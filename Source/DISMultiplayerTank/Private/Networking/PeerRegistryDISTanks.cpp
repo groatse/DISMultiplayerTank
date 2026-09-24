@@ -43,7 +43,18 @@ void UPeerRegistryDISTanks::RecordLocalDeath(int32 KillerApplicationID)
 	LocalDeathsByKiller.FindOrAdd(KillerApplicationID)++;
 	UE_LOG(LogDISTanks, Log, TEXT("ScoreDeath Killer=%d Deaths=%d Round=%d"), KillerApplicationID, LocalDeathsByKiller[KillerApplicationID], CurrentRoundNumber);
 	OnScoreChanged.Broadcast();
+	LogScoreView();
 	CheckRoundWin();
+}
+
+void UPeerRegistryDISTanks::LogScoreView() const
+{
+	FString ScoreEntries;
+	for (const int32 ApplicationID : GetAllApplicationIDsBySlot())
+	{
+		ScoreEntries += FString::Printf(TEXT("%d:%d;"), ApplicationID, GetScoreForApplication(ApplicationID));
+	}
+	UE_LOG(LogDISTanks, Log, TEXT("ScoreView Round=%d Scores=%s"), CurrentRoundNumber, *ScoreEntries);
 }
 
 void UPeerRegistryDISTanks::ApplyPeerScoreState(int32 PeerApplicationID, int32 PeerRoundNumber, const TMap<int32, int32>& PeerDeathsByKiller)
@@ -77,6 +88,7 @@ void UPeerRegistryDISTanks::ApplyPeerScoreState(int32 PeerApplicationID, int32 P
 	if (bAnyCounterChanged)
 	{
 		OnScoreChanged.Broadcast();
+		LogScoreView();
 		CheckRoundWin();
 	}
 }

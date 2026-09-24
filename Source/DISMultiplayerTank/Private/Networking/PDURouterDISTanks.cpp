@@ -36,6 +36,7 @@ void UPDURouterDISTanks::Initialize(FSubsystemCollectionBase& Collection)
 	}
 
 	OpenSockets();
+	NetConditioner.InitFromCommandLine();
 
 	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UPDURouterDISTanks::HandleTicker), 0.0f);
 
@@ -144,6 +145,69 @@ void UPDURouterDISTanks::RetintGhostTanks()
 
 void UPDURouterDISTanks::HandleEntityStatePDU(FEntityStatePDU EntityStatePDU)
 {
+	UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	if (!NetConditioner.IsEnabled() || !World)
+	{
+		ProcessEntityStatePDU(EntityStatePDU);
+		return;
+	}
+
+	if (NetConditioner.ShouldDrop())
+	{
+		return;
+	}
+	const double NowWorldSeconds = World->GetTimeSeconds();
+	NetConditioner.EnqueueDelivery(NowWorldSeconds, [this, EntityStatePDU]() { ProcessEntityStatePDU(EntityStatePDU); });
+	if (NetConditioner.ShouldDuplicate())
+	{
+		NetConditioner.EnqueueDelivery(NowWorldSeconds, [this, EntityStatePDU]() { ProcessEntityStatePDU(EntityStatePDU); });
+	}
+}
+
+void UPDURouterDISTanks::HandleFirePDU(FFirePDU FirePDU)
+{
+	UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	if (!NetConditioner.IsEnabled() || !World)
+	{
+		ProcessFirePDU(FirePDU);
+		return;
+	}
+
+	if (NetConditioner.ShouldDrop())
+	{
+		return;
+	}
+	const double NowWorldSeconds = World->GetTimeSeconds();
+	NetConditioner.EnqueueDelivery(NowWorldSeconds, [this, FirePDU]() { ProcessFirePDU(FirePDU); });
+	if (NetConditioner.ShouldDuplicate())
+	{
+		NetConditioner.EnqueueDelivery(NowWorldSeconds, [this, FirePDU]() { ProcessFirePDU(FirePDU); });
+	}
+}
+
+void UPDURouterDISTanks::HandleDetonationPDU(FDetonationPDU DetonationPDU)
+{
+	UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	if (!NetConditioner.IsEnabled() || !World)
+	{
+		ProcessDetonationPDU(DetonationPDU);
+		return;
+	}
+
+	if (NetConditioner.ShouldDrop())
+	{
+		return;
+	}
+	const double NowWorldSeconds = World->GetTimeSeconds();
+	NetConditioner.EnqueueDelivery(NowWorldSeconds, [this, DetonationPDU]() { ProcessDetonationPDU(DetonationPDU); });
+	if (NetConditioner.ShouldDuplicate())
+	{
+		NetConditioner.EnqueueDelivery(NowWorldSeconds, [this, DetonationPDU]() { ProcessDetonationPDU(DetonationPDU); });
+	}
+}
+
+void UPDURouterDISTanks::ProcessEntityStatePDU(const FEntityStatePDU& EntityStatePDU)
+{
 	if (EntityStatePDU.ExerciseID != DISTanksProtocol::ExerciseID || EntityStatePDU.EntityID.Application == LocalTankEntityID.Application)
 	{
 		return;
@@ -168,7 +232,7 @@ void UPDURouterDISTanks::HandleEntityStatePDU(FEntityStatePDU EntityStatePDU)
 	}
 }
 
-void UPDURouterDISTanks::HandleFirePDU(FFirePDU FirePDU)
+void UPDURouterDISTanks::ProcessFirePDU(const FFirePDU& FirePDU)
 {
 	if (FirePDU.ExerciseID != DISTanksProtocol::ExerciseID || FirePDU.FiringEntityID.Application == LocalTankEntityID.Application)
 	{
@@ -193,7 +257,7 @@ void UPDURouterDISTanks::HandleFirePDU(FFirePDU FirePDU)
 	}
 }
 
-void UPDURouterDISTanks::HandleDetonationPDU(FDetonationPDU DetonationPDU)
+void UPDURouterDISTanks::ProcessDetonationPDU(const FDetonationPDU& DetonationPDU)
 {
 	if (DetonationPDU.ExerciseID != DISTanksProtocol::ExerciseID || DetonationPDU.MunitionEntityID.Application == LocalTankEntityID.Application)
 	{
@@ -372,6 +436,16 @@ void UPDURouterDISTanks::HandleRemoteTankState(const FEntityStatePDU& EntityStat
 	const float GhostYawDegrees = FMath::RadiansToDegrees(EntityStatePDU.EntityOrientation.Yaw);
 
 	ATankDISTanks* GhostTank = Cast<ATankDISTanks>(GhostEntry.GhostActor.Get());
+
+	// Each correction's distance to the ghost's current spot samples the accumulated dead-reckoning error.
+	if (GhostTank)
+	{
+		const float CorrectionErrorCm = FVector::Dist(GhostTank->GetActorLocation(), GhostLocationCm);
+		DRSampleCount++;
+		DRErrorSumCm += CorrectionErrorCm;
+		DRErrorMaxCm = FMath::Max(DRErrorMaxCm, CorrectionErrorCm);
+	}
+
 	if (!GhostTank)
 	{
 		UWorld* World = GetGameInstance()->GetWorld();
@@ -498,13 +572,18 @@ bool UPDURouterDISTanks::HandleTicker(float DeltaSeconds)
 	if (UWorld* World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr)
 	{
 		const double NowWorldSeconds = World->GetTimeSeconds();
+		NetConditioner.DrainDueDeliveries(NowWorldSeconds);
 		RemoveStaleGhosts(NowWorldSeconds);
 
-		// Periodic health marker so choppy sessions are diagnosable from logs.
+		// Periodic health marker with dead-reckoning error stats so sessions are diagnosable from logs.
 		if (NowWorldSeconds - LastHealthLogSeconds > 10.0)
 		{
 			LastHealthLogSeconds = NowWorldSeconds;
-			UE_LOG(LogDISTanks, Log, TEXT("RouterHealth FPS=%.0f GhostTanks=%d GhostShells=%d"), 1.0f / SmoothedFrameSeconds, GhostTanks.Num(), GhostShells.Num());
+			const float DRMeanCm = DRSampleCount > 0 ? DRErrorSumCm / DRSampleCount : 0.0f;
+			UE_LOG(LogDISTanks, Log, TEXT("RouterHealth FPS=%.0f GhostTanks=%d GhostShells=%d DRSamples=%d DRMeanCm=%.0f DRMaxCm=%.0f"), 1.0f / SmoothedFrameSeconds, GhostTanks.Num(), GhostShells.Num(), DRSampleCount, DRMeanCm, DRErrorMaxCm);
+			DRSampleCount = 0;
+			DRErrorSumCm = 0.0f;
+			DRErrorMaxCm = 0.0f;
 		}
 	}
 
