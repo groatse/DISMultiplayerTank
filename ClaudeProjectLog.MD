@@ -174,3 +174,26 @@ Recommendation: build the data structures N-shaped now (peer registry, per-kille
 ### User Choices
 
 - Flagged >2 players as possible future scope creep to keep in mind; the plan is to be structured so that supporting more players later requires no redesign (pending confirmation of the N-shaped data structure approach).
+
+---
+
+## Entry 10 — 2026-09-24
+
+### Prompt
+
+> alright, let's do an architecture plan with class breakdown first. I want it cleanly separated to folders (with PascalCaseNaming) and Source root only contains what's in there now. The naming of classes should always follow UE standards, and should of the structure "ParentClass/OtherType" + "DISTanks", example "GameModeDISTanks".
+
+### Claude's Answer
+
+Wrote the full architecture plan to `Docs/ArchitecturePlan.MD`. Summary:
+
+- **Layout:** single runtime module; all new code in PascalCase subfolders of `Source/DISMultiplayerTank/`: `Core/`, `Tanks/`, `Shells/`, `Networking/`, `UI/`. Source root unchanged.
+- **Classes (all `<Type>DISTanks`, UE prefixes on the C++ class):** `AGameModeDISTanks` (per-instance match state machine, auto-start at ≥2 peers, camera + spawn, 10-kill reset), `APlayerControllerDISTanks` (Enhanced Input, blocked during death freeze), `ATankDISTanks` (one pawn class with owned mode — fixed-timestep Combat movement, DISSendComponent, one-shell limit, victim death adjudication — and ghost mode driven by DISReceiveComponent dead reckoning), `AShellDISTanks` (owned: kinematic steerable flight + impact detection + Detonation; ghost: dead-reckoned visual), `UPeerRegistryDISTanks` (GameInstance subsystem: peer map, token-rank auto-negotiation for slots, per-killer monotonic death counters + round number with take-max merge), `UPDURouterDISTanks` (GameInstance subsystem: sole GRILL DIS touchpoint — UDP bootstrap, PDU routing, ghost spawning, custom state codec), `PDUTypesDISTanks.h` (shared types/constants), `AHUDDISTanks` (Canvas score list, match state text).
+- **Rules:** no Unreal replication; single authority per entity; victim-declared kills; state-over-events for scores/identity; N-shaped data with 2-player shipped scope.
+- **Risks flagged:** custom-state transport in ESPDU fields vs. fallback Data/Comment PDUs; localhost twin-instance UDP port sharing; plugin dead-reckoning fidelity for fast shells (fallback: manual shell PDU routing).
+- **Build order:** 1) local tank + arena, 2) shell + death/respawn local, 3) DIS tank sync, 4) DIS shell + kill flow, 5) identity/auto-start, 6) score + round flow, 7) packaging + docs + video. Each step ends runnable.
+
+### User Choices
+
+- Folder-per-domain source organization with PascalCase folder names; `Source/` root frozen to current contents.
+- Class naming convention fixed as "ParentClass/OtherType" + "DISTanks" (e.g. `GameModeDISTanks`) following UE standards.
