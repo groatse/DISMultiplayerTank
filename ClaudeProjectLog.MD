@@ -51,3 +51,19 @@ Ran `git lfs install` and added a `.gitattributes` tracking UE binary assets (`.
 
 - Adopted Git LFS for binary assets.
 - Reused the `/sync` workflow from the LoadedDiceFaceOff project, with the rule that sync runs only on explicit command.
+
+---
+
+## Entry 4 — 2026-09-24
+
+### Prompt
+
+> create the remote, private
+
+### Claude's Answer
+
+Created the private GitHub repository `groatse/DISMultiplayerTank` with `gh repo create`, added it as `origin`, and pushed `main` with tracking set up. Replaced the placeholder clone URL in the `/sync` skill with the real one and pushed that follow-up commit as part of completing the setup.
+
+### User Choices
+
+- Chose a private repository for the interview project.

@@ -101,7 +101,7 @@ winget install --id GitHub.cli -e
 git lfs install
 git config --global core.longpaths true # REQUIRED - see below
 gh auth login                           # interactive, browser
-git clone <this repo's remote URL>   # set once a GitHub remote exists
+git clone https://github.com/groatse/DISMultiplayerTank.git
 ```
 
 `core.longpaths` is not optional. Some content paths (e.g.
