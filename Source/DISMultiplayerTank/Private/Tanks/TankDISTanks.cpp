@@ -18,16 +18,20 @@ ATankDISTanks::ATankDISTanks()
 	SetRootComponent(CollisionBox);
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMeshFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	// The cube's default slot is the parameterless WorldGridMaterial, so assign the parameterized shape material for tinting.
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> TintableMaterialFinder(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
 	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
 	BodyMesh->SetupAttachment(CollisionBox);
 	BodyMesh->SetStaticMesh(CubeMeshFinder.Object);
+	BodyMesh->SetMaterial(0, TintableMaterialFinder.Object);
 	BodyMesh->SetRelativeScale3D(FVector(1.2f, 0.9f, 0.5f));
 	BodyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	BarrelMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BarrelMesh"));
 	BarrelMesh->SetupAttachment(CollisionBox);
 	BarrelMesh->SetStaticMesh(CubeMeshFinder.Object);
+	BarrelMesh->SetMaterial(0, TintableMaterialFinder.Object);
 	BarrelMesh->SetRelativeScale3D(FVector(0.9f, 0.12f, 0.12f));
 	BarrelMesh->SetRelativeLocation(FVector(95.0f, 0.0f, 0.0f));
 	BarrelMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -71,7 +75,7 @@ void ATankDISTanks::SetMovementFrozen(bool bNewMovementFrozen)
 
 void ATankDISTanks::RequestFire()
 {
-	if (ActiveShell.IsValid() || bDeathSequenceActive || !ShellClass || !GetWorld())
+	if (ActiveShell.IsValid() || bDeathSequenceActive || bMovementFrozen || !ShellClass || !GetWorld())
 	{
 		return;
 	}
@@ -102,8 +106,11 @@ void ATankDISTanks::HandleShellHit(AShellDISTanks* HittingShell)
 		return;
 	}
 
+	const AActor* ShooterActor = HittingShell ? HittingShell->GetOwner() : nullptr;
+	const FVector ThreatLocationCm = ShooterActor ? ShooterActor->GetActorLocation() : (HittingShell ? HittingShell->GetActorLocation() : GetActorLocation());
+
 	UE_LOG(LogDISTanks, Log, TEXT("TankDeath Victim=%s Shell=%s"), *GetName(), *GetNameSafe(HittingShell));
-	StartDeathSequence();
+	StartDeathSequence(ThreatLocationCm);
 }
 
 void ATankDISTanks::SimulateMovementStep(float StepSeconds)
@@ -116,9 +123,10 @@ void ATankDISTanks::SimulateMovementStep(float StepSeconds)
 
 	const FVector LocationBeforeStep = GetActorLocation();
 
-	// The death sequence overrides player control with the forced slide.
+	// The death sequence overrides player control with the forced bounce and spin.
 	if (bDeathSequenceActive)
 	{
+		AddActorWorldRotation(FRotator(0.0f, DeathSpinRateDegPerSec * StepSeconds, 0.0f));
 		AddActorWorldOffset(DeathSlideDirection * (DeathSlideSpeedCmPerSec * StepSeconds), true);
 		DeathSequenceRemainingSeconds -= StepSeconds;
 		if (DeathSequenceRemainingSeconds <= 0.0f)
@@ -147,10 +155,10 @@ void ATankDISTanks::InitAsGhost()
 	bIsGhost = true;
 }
 
-void ATankDISTanks::HandleConfirmedKill()
+void ATankDISTanks::HandleConfirmedKill(const FVector& KillerLocationCm)
 {
 	UE_LOG(LogDISTanks, Log, TEXT("TankDeath Victim=%s Shell=RemoteDetonation"), *GetName());
-	StartDeathSequence();
+	StartDeathSequence(KillerLocationCm);
 }
 
 void ATankDISTanks::SetTintColor(const FLinearColor& NewTintColor)
@@ -204,18 +212,33 @@ void ATankDISTanks::TickGhostInterpolation(float DeltaSeconds)
 	// Constant-velocity dead reckoning with capped extrapolation, then smoothing toward the prediction.
 	const float ExtrapolationSeconds = FMath::Min(static_cast<float>(GetWorld()->GetTimeSeconds() - RemoteBaseWorldSeconds), MaxExtrapolationSeconds);
 	const FVector TargetLocation = RemoteBaseLocation + RemoteVelocityCmPerSec * ExtrapolationSeconds;
-	SetActorLocation(FMath::VInterpTo(GetActorLocation(), TargetLocation, DeltaSeconds, GhostSmoothingSpeed));
-
 	const FRotator TargetRotation(0.0f, RemoteBaseYawDegrees, 0.0f);
+
+	// Large corrections (respawns, repositions) snap instead of gliding across the arena.
+	if (FVector::DistSquared(GetActorLocation(), TargetLocation) > FMath::Square(GhostSnapDistanceCm))
+	{
+		SetActorLocation(TargetLocation);
+		SetActorRotation(TargetRotation);
+		return;
+	}
+
+	SetActorLocation(FMath::VInterpTo(GetActorLocation(), TargetLocation, DeltaSeconds, GhostSmoothingSpeed));
 	SetActorRotation(FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaSeconds, GhostSmoothingSpeed));
 }
 
-void ATankDISTanks::StartDeathSequence()
+void ATankDISTanks::StartDeathSequence(const FVector& ThreatLocationCm)
 {
 	bDeathSequenceActive = true;
 	DeathSequenceRemainingSeconds = DeathSequenceSeconds;
 	SetDestroyedVisual(true);
 
-	const float SlideAngleDegrees = FMath::FRandRange(0.0f, 360.0f);
-	DeathSlideDirection = FRotator(0.0f, SlideAngleDegrees, 0.0f).Vector();
+	// Bounce somewhere in the arc facing away from the killer, spinning like the original game.
+	FVector AwayDirection = (GetActorLocation() - ThreatLocationCm).GetSafeNormal2D();
+	if (AwayDirection.IsNearlyZero())
+	{
+		AwayDirection = FRotator(0.0f, FMath::FRandRange(0.0f, 360.0f), 0.0f).Vector();
+	}
+	const float ArcOffsetDegrees = FMath::FRandRange(-DeathArcHalfAngleDegrees, DeathArcHalfAngleDegrees);
+	DeathSlideDirection = AwayDirection.RotateAngleAxis(ArcOffsetDegrees, FVector::UpVector);
+	DeathSpinRateDegPerSec = FMath::FRandRange(180.0f, 540.0f) * (FMath::RandBool() ? 1.0f : -1.0f);
 }

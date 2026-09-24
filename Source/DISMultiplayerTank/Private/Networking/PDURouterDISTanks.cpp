@@ -3,6 +3,7 @@
 #include "DISMultiplayerTank.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "Networking/PeerRegistryDISTanks.h"
 #include "PDUProcessor.h"
 #include "Shells/ShellDISTanks.h"
 #include "Tanks/TankDISTanks.h"
@@ -14,10 +15,14 @@ void UPDURouterDISTanks::Initialize(FSubsystemCollectionBase& Collection)
 
 	Collection.InitializeDependency(UUDPSubsystem::StaticClass());
 	Collection.InitializeDependency(UPDUProcessor::StaticClass());
+	Collection.InitializeDependency(UPeerRegistryDISTanks::StaticClass());
 
-	// Random application ID keeps two instances distinct until phase 5 negotiation replaces it.
-	LocalTankEntityID = FEntityID(DISTanksProtocol::SiteID, FMath::RandRange(1, 65535), DISTanksProtocol::TankEntityNumber);
+	UPeerRegistryDISTanks* Registry = GetGameInstance()->GetSubsystem<UPeerRegistryDISTanks>();
+	LocalTankEntityID = FEntityID(DISTanksProtocol::SiteID, Registry->GetLocalApplicationID(), DISTanksProtocol::TankEntityNumber);
 	NextShellEntityNumber = DISTanksProtocol::ShellEntityNumberBase;
+
+	// Slot ranking can change while ghosts already exist, so re-tint them on every peer-set change.
+	Registry->OnPeerSetChanged.AddUObject(this, &UPDURouterDISTanks::RetintGhostTanks);
 
 	if (UPDUProcessor* Processor = GetGameInstance()->GetSubsystem<UPDUProcessor>())
 	{
@@ -116,11 +121,21 @@ void UPDURouterDISTanks::NotifyLocalShellDetonated(AShellDISTanks* DetonatedShel
 	LocalShell = nullptr;
 }
 
-int32 UPDURouterDISTanks::GetInterimSlotIndex() const
+void UPDURouterDISTanks::RetintGhostTanks()
 {
-	int32 SlotIndex = LocalTankEntityID.Application % 2;
-	FParse::Value(FCommandLine::Get(), TEXT("PlayerSlot="), SlotIndex);
-	return SlotIndex;
+	UPeerRegistryDISTanks* Registry = GetGameInstance()->GetSubsystem<UPeerRegistryDISTanks>();
+	if (!Registry)
+	{
+		return;
+	}
+
+	for (const TPair<FEntityID, FGhostEntryDISTanks>& GhostPair : GhostTanks)
+	{
+		if (ATankDISTanks* GhostTank = Cast<ATankDISTanks>(GhostPair.Value.GhostActor.Get()))
+		{
+			GhostTank->SetTintColor(UPeerRegistryDISTanks::GetSlotColor(Registry->GetSlotForApplication(GhostPair.Key.Application)));
+		}
+	}
 }
 
 void UPDURouterDISTanks::HandleEntityStatePDU(FEntityStatePDU EntityStatePDU)
@@ -215,8 +230,18 @@ void UPDURouterDISTanks::HandleDetonationPDU(FDetonationPDU DetonationPDU)
 		return;
 	}
 
+	// Bounce away from the killer's ghost when we know it, otherwise the tank falls back to a random direction.
+	FVector KillerLocationCm = Tank->GetActorLocation();
+	if (const FGhostEntryDISTanks* KillerEntry = GhostTanks.Find(DetonationPDU.FiringEntityID))
+	{
+		if (const AActor* KillerGhost = KillerEntry->GhostActor.Get())
+		{
+			KillerLocationCm = KillerGhost->GetActorLocation();
+		}
+	}
+
 	UE_LOG(LogDISTanks, Log, TEXT("KillConfirmed Victim=%s Killer=%s Distance=%.0f"), *DISTanksProtocol::EntityIDToString(LocalTankEntityID), *DISTanksProtocol::EntityIDToString(DetonationPDU.FiringEntityID), DistanceCm);
-	Tank->HandleConfirmedKill();
+	Tank->HandleConfirmedKill(KillerLocationCm);
 	EvaluateLocalTankPublish();
 }
 
@@ -338,6 +363,12 @@ void UPDURouterDISTanks::HandleRemoteTankState(const FEntityStatePDU& EntityStat
 	GhostTank->SetDestroyedVisual(EntityStatePDU.EntityAppearance.Damage == EEntityDamage::Destroyed);
 	GhostEntry.LastTimestampSecondsInHour = PduSecondsInHour;
 	GhostEntry.LastHeardWorldSeconds = NowWorldSeconds;
+
+	// NotifyPeerHeard fires OnPeerSetChanged on first contact, which re-tints all ghosts by slot.
+	if (UPeerRegistryDISTanks* Registry = GetGameInstance()->GetSubsystem<UPeerRegistryDISTanks>())
+	{
+		Registry->NotifyPeerHeard(EntityStatePDU.EntityID.Application, NowWorldSeconds);
+	}
 }
 
 void UPDURouterDISTanks::HandleRemoteShellState(const FEntityStatePDU& EntityStatePDU, double NowWorldSeconds, double PduSecondsInHour)
@@ -386,6 +417,10 @@ void UPDURouterDISTanks::RemoveStaleGhosts(double NowWorldSeconds)
 			GhostActor->Destroy();
 		}
 		UE_LOG(LogDISTanks, Log, TEXT("GhostTankTimeout Entity=%s"), *DISTanksProtocol::EntityIDToString(GhostIterator.Key()));
+		if (UPeerRegistryDISTanks* Registry = GetGameInstance()->GetSubsystem<UPeerRegistryDISTanks>())
+		{
+			Registry->NotifyPeerLost(GhostIterator.Key().Application);
+		}
 		GhostIterator.RemoveCurrent();
 	}
 

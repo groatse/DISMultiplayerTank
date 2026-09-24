@@ -5,8 +5,9 @@
 #include "GameModeDISTanks.generated.h"
 
 class AArenaDISTanks;
+class ATankDISTanks;
 
-/** Per-instance match orchestrator that assembles the arena and spawns the local tank. */
+/** Per-instance match orchestrator: assembles the arena, spawns the local tank, and starts play when peers are discovered. */
 UCLASS()
 class DISMULTIPLAYERTANK_API AGameModeDISTanks : public AGameModeBase
 {
@@ -28,6 +29,9 @@ protected:
 	/** Spawns an unpossessed target tank at slot 1 for local hit testing until ghost tanks arrive in phase 3. */
 	void SpawnPracticeTarget();
 
+	/** Applies the current peer situation: waiting-frozen with no peers, or repositioned/tinted/unfrozen at the negotiated slot. */
+	void RefreshMatchState();
+
 	/** Arena class to spawn, exposed for tuning or Blueprint variants. */
 	UPROPERTY(EditDefaultsOnly, Category = "Match")
 	TSubclassOf<AArenaDISTanks> ArenaClass;
@@ -38,4 +42,10 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<AArenaDISTanks> ArenaActor;
+
+private:
+	TWeakObjectPtr<ATankDISTanks> LocalTankPawn;
+	int32 LiveSlotIndex = -1;
+	bool bMatchLive = false;
+	bool bHasAnnouncedWaiting = false;
 };

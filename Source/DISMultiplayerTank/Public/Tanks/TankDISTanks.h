@@ -54,8 +54,8 @@ public:
 	/** Returns the velocity produced by the last simulation step in cm/s. */
 	FVector GetSimVelocityCmPerSec() const { return CurrentVelocityCmPerSec; }
 
-	/** Starts the death sequence for a kill adjudicated from a remote Detonation PDU. */
-	void HandleConfirmedKill();
+	/** Starts the death sequence for a kill adjudicated from a remote Detonation PDU, bouncing away from the killer's position. */
+	void HandleConfirmedKill(const FVector& KillerLocationCm);
 
 	/** Applies a base tint to the hull and barrel placeholder meshes. */
 	void SetTintColor(const FLinearColor& NewTintColor);
@@ -67,8 +67,8 @@ protected:
 	/** Applies one fixed step of rotation and swept translation, or the forced death slide. */
 	void SimulateMovementStep(float StepSeconds);
 
-	/** Freezes player control and starts the forced slide in a random direction. */
-	void StartDeathSequence();
+	/** Freezes player control and starts the forced bounce away from the threat with a random spin. */
+	void StartDeathSequence(const FVector& ThreatLocationCm);
 
 	/** Moves a ghost toward its dead-reckoned target with smoothing. */
 	void TickGhostInterpolation(float DeltaSeconds);
@@ -113,6 +113,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Tank|Combat")
 	float DeathSlideSpeedCmPerSec = 300.0f;
 
+	/** Half-angle in degrees of the away-from-killer arc the death bounce direction is drawn from. */
+	UPROPERTY(EditAnywhere, Category = "Tank|Combat")
+	float DeathArcHalfAngleDegrees = 60.0f;
+
+	/** Distance in cm beyond which a ghost snaps to its dead-reckoned target instead of smoothing. */
+	UPROPERTY(EditAnywhere, Category = "Tank|Ghost")
+	float GhostSnapDistanceCm = 400.0f;
+
 	/** How quickly a ghost closes on its dead-reckoned target. */
 	UPROPERTY(EditAnywhere, Category = "Tank|Ghost")
 	float GhostSmoothingSpeed = 8.0f;
@@ -136,6 +144,7 @@ private:
 
 	TWeakObjectPtr<AShellDISTanks> ActiveShell;
 	FVector DeathSlideDirection = FVector::ZeroVector;
+	float DeathSpinRateDegPerSec = 0.0f;
 	FVector CurrentVelocityCmPerSec = FVector::ZeroVector;
 	FVector RemoteBaseLocation = FVector::ZeroVector;
 	FVector RemoteVelocityCmPerSec = FVector::ZeroVector;

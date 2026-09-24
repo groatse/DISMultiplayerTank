@@ -6,5 +6,5 @@ param(
 
 $EditorExe = Join-Path $EnginePath "Engine\Binaries\Win64\UnrealEditor.exe"
 
-& $EditorExe $ProjectPath -game -windowed -resx=960 -resy=540 -WinX=0 -WinY=100 -PlayerSlot=0 -log
-& $EditorExe $ProjectPath -game -windowed -resx=960 -resy=540 -WinX=970 -WinY=100 -PlayerSlot=1 -log
+& $EditorExe $ProjectPath -game -windowed -resx=960 -resy=540 -WinX=0 -WinY=100 -log
+& $EditorExe $ProjectPath -game -windowed -resx=960 -resy=540 -WinX=970 -WinY=100 -log

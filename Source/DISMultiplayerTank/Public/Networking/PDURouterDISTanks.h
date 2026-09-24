@@ -45,10 +45,10 @@ public:
 	/** Returns this instance's tank entity ID. */
 	const FEntityID& GetLocalTankEntityID() const { return LocalTankEntityID; }
 
-	/** Returns the spawn slot to use until peer negotiation lands in phase 5, overridable with -PlayerSlot=. */
-	int32 GetInterimSlotIndex() const;
-
 protected:
+	/** Reapplies slot colors to all ghost tanks after the peer ranking changes. */
+	void RetintGhostTanks();
+
 	/** Routes a received Entity State PDU to the matching ghost tank or shell, spawning one for unknown remote entities. */
 	UFUNCTION()
 	void HandleEntityStatePDU(FEntityStatePDU EntityStatePDU);

@@ -393,3 +393,26 @@ Measured result on relaunch: instance A ~360 FPS, instance B ~190 FPS (up from ~
 ### User Choices
 
 - Reported the latency/choppiness and the 1 s update-rate observation that pinpointed the diagnosis; re-test pending.
+
+---
+
+## Entry 20 — 2026-09-24
+
+### Prompt
+
+> works. fix the death so it goes bounces away from the other player (120 arc, random rot). then start the next phase
+
+### Claude's Answer
+
+**Death bounce fix:** the death slide now launches away from the killer — direction drawn from a 120° arc (±60°) centered on the away-from-killer vector, with a random spin (180–540°/s, random direction) during the slide, like the original game. The victim's router resolves the killer's ghost tank position from the Detonation PDU's firing entity and passes it to the tank; local practice hits use the shell owner's position; a degenerate zero vector falls back to a random direction. Firing is now also blocked while movement is frozen.
+
+**Phase 5 (identity & auto-start):** new `UPeerRegistryDISTanks` (GameInstance subsystem, DIS-type-free) — generates the random session token that doubles as the DIS application ID, tracks discovered peers, and derives deterministic slots by sorting all known tokens (identical ranking everywhere, no handshake; token collision odds 1/65535 accepted and documented). The router now takes its identity from the registry, reports peers heard/lost (from tank ESPDUs and ghost timeouts), and re-tints all ghost tanks by slot color whenever the peer set changes. The GameMode drives match state from registry events: tank spawns frozen with "WaitingForPeers", and on first peer contact each instance repositions its own tank to its negotiated slot spawn, tints it (slot 0 green / slot 1 red, Combat-style; N-shaped color array), unfreezes, and logs `MatchStarted Slot=`. Ghosts follow their owner's reposition via dead reckoning with a new 4 m snap threshold (large corrections teleport instead of gliding). The interim `-PlayerSlot` mechanism was removed, including from the launch script — zero-click start achieved.
+
+**Tint bug found and fixed along the way:** slot colors initially didn't render; runtime enumeration of the material's vector parameters (empty list) revealed the engine cube's default slot material is the parameterless WorldGridMaterial, not BasicShapeMaterial. Fix: explicitly assign `/Engine/BasicShapes/BasicShapeMaterial` to tank meshes in the constructor. Verified via automated pixel sampling: red- and green-dominant clusters present in the viewport.
+
+Verified end-to-end: both instances log `WaitingForPeers` → `PeerJoined` → `MatchStarted` with complementary slots (token 12735 → slot 0, 52879 → slot 1) within ~1 s of launch, no arguments. Death bounce needs a user playtest; instances left running.
+
+### User Choices
+
+- Confirmed the lag fix works.
+- Death sequence redesigned: bounce away from the killer within a 120° arc plus random rotation (in place of the fully random slide).

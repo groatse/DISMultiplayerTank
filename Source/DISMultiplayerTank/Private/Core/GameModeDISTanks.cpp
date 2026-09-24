@@ -2,7 +2,9 @@
 
 #include "Core/ArenaDISTanks.h"
 #include "Core/PlayerControllerDISTanks.h"
+#include "DISMultiplayerTank.h"
 #include "Networking/PDURouterDISTanks.h"
+#include "Networking/PeerRegistryDISTanks.h"
 #include "Tanks/TankDISTanks.h"
 
 AGameModeDISTanks::AGameModeDISTanks()
@@ -14,18 +16,26 @@ AGameModeDISTanks::AGameModeDISTanks()
 
 APawn* AGameModeDISTanks::SpawnDefaultPawnFor_Implementation(AController* NewPlayer, AActor* StartSpot)
 {
-	// Interim slot from the router until peer negotiation lands in phase 5.
-	UPDURouterDISTanks* Router = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPDURouterDISTanks>() : nullptr;
-	const int32 SpawnSlotIndex = Router ? Router->GetInterimSlotIndex() : 0;
+	UGameInstance* GameInstance = GetGameInstance();
+	UPeerRegistryDISTanks* Registry = GameInstance ? GameInstance->GetSubsystem<UPeerRegistryDISTanks>() : nullptr;
+	const int32 SpawnSlotIndex = Registry ? Registry->GetLocalSlotIndex() : 0;
 
 	AArenaDISTanks* Arena = EnsureArenaSpawned();
 	const FTransform SpawnTransform = Arena ? Arena->GetSpawnTransform(SpawnSlotIndex) : FTransform::Identity;
 	APawn* NewPawn = SpawnDefaultPawnAtTransform(NewPlayer, SpawnTransform);
+	LocalTankPawn = Cast<ATankDISTanks>(NewPawn);
 
-	if (Router)
+	if (UPDURouterDISTanks* Router = GameInstance ? GameInstance->GetSubsystem<UPDURouterDISTanks>() : nullptr)
 	{
-		Router->RegisterLocalTank(Cast<ATankDISTanks>(NewPawn));
+		Router->RegisterLocalTank(LocalTankPawn.Get());
 	}
+
+	if (Registry)
+	{
+		Registry->OnPeerSetChanged.AddUObject(this, &AGameModeDISTanks::RefreshMatchState);
+	}
+	RefreshMatchState();
+
 	return NewPawn;
 }
 
@@ -57,6 +67,42 @@ void AGameModeDISTanks::SpawnPracticeTarget()
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 	GetWorld()->SpawnActor<ATankDISTanks>(ATankDISTanks::StaticClass(), Arena->GetSpawnTransform(1), SpawnParameters);
+}
+
+void AGameModeDISTanks::RefreshMatchState()
+{
+	UPeerRegistryDISTanks* Registry = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPeerRegistryDISTanks>() : nullptr;
+	ATankDISTanks* Tank = LocalTankPawn.Get();
+	if (!Registry || !Tank)
+	{
+		return;
+	}
+
+	if (!Registry->IsMatchReady())
+	{
+		if (bMatchLive || !bHasAnnouncedWaiting)
+		{
+			Tank->SetMovementFrozen(true);
+			UE_LOG(LogDISTanks, Log, TEXT("WaitingForPeers App=%d"), Registry->GetLocalApplicationID());
+		}
+		bMatchLive = false;
+		bHasAnnouncedWaiting = true;
+		return;
+	}
+
+	// Every instance repositions only its own tank; ghosts follow through dead reckoning and snap.
+	const int32 SlotIndex = Registry->GetLocalSlotIndex();
+	if (!bMatchLive || SlotIndex != LiveSlotIndex)
+	{
+		AArenaDISTanks* Arena = EnsureArenaSpawned();
+		const FTransform SlotTransform = Arena ? Arena->GetSpawnTransform(SlotIndex) : FTransform::Identity;
+		Tank->SetActorLocationAndRotation(SlotTransform.GetLocation(), SlotTransform.GetRotation());
+		Tank->SetTintColor(UPeerRegistryDISTanks::GetSlotColor(SlotIndex));
+		Tank->SetMovementFrozen(false);
+		bMatchLive = true;
+		LiveSlotIndex = SlotIndex;
+		UE_LOG(LogDISTanks, Log, TEXT("MatchStarted Slot=%d App=%d Peers=%d"), SlotIndex, Registry->GetLocalApplicationID(), Registry->GetPeerCount());
+	}
 }
 
 AArenaDISTanks* AGameModeDISTanks::EnsureArenaSpawned()
