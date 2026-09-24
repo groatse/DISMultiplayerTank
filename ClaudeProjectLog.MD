@@ -149,3 +149,28 @@ Added one refinement to make it drop-proof: transmit score as state, not events.
 ### User Choices
 
 - Confirmed the score model: kills are single-authority (victim-declared), so no score disagreement is possible — accepted as the basis for the 10-kill reset with the state-based (monotonic death counter + round number) refinement.
+
+---
+
+## Entry 9 — 2026-09-24
+
+### Prompt
+
+> before we go into that, any changes / additions needed for the plan to support more players than 2? that is a possible scope creep I want to keep in mind
+
+### Claude's Answer
+
+Assessed N-player readiness: the design is mostly N-ready by construction, because DIS is a peer-broadcast protocol with no protocol-level "other player" concept, and the authority model is per-entity — shooter-vs-DR'd-tank collision, victim-adjudicated deaths, shell-as-entity, and one-shell-per-tank all scale unchanged.
+
+Two places are secretly 2-player-shaped, both cheap to fix now:
+
+1. **Kill attribution:** a single death counter identifies the death but not who scored. Generalize the published score state to per-killer counters ("entity X has killed me N times" — a small monotonic take-max map); my score = sum of everyone else's counters for my ID. The victim stays the single authority for attribution, consistent with it validating the killing detonation. First-to-10 and round reset still derive deterministically.
+2. **Identity:** the pairwise token tiebreak generalizes to a peer registry — everyone broadcasts a session token, slot = your token's rank in the sorted set of known tokens; slot derives spawn point and color. Structurally: keep a map of entity ID to peer state instead of a single "remote tank" pointer; game start is a "≥2 peers present" threshold.
+
+Knock-ons: score UI as a dynamic list; spawn points as a slot-indexed array.
+
+Recommendation: build the data structures N-shaped now (peer registry, per-killer counters, slot-derived spawn/color, list-based score UI) while keeping 2 players the only tested/shipped configuration — later expansion becomes config plus testing, not a refactor. Explicitly out of scope now: late-join-mid-round semantics, N-player testing, lobby flow.
+
+### User Choices
+
+- Flagged >2 players as possible future scope creep to keep in mind; the plan is to be structured so that supporting more players later requires no redesign (pending confirmation of the N-shaped data structure approach).
