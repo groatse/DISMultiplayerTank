@@ -485,3 +485,23 @@ Validated end-to-end with real runs: **Baseline PASS** (kill adjudicated, scores
 ### User Choices
 
 - Confirmed phase 6 works by playtesting; approved proceeding to phase 7.
+
+---
+
+## Entry 24 — 2026-09-24
+
+### Prompt
+
+> Go for phase 8
+
+### Claude's Answer
+
+Wrote the documentation deliverables:
+
+- **`README.md`** — project overview, requirements (UE 5.7, engine-installed GRILL DIS, Git LFS, longpaths), build steps (project-file generation + UBT build), run instructions (one-command two-instance demo, LAN play via broadcast, command-line options table, controls, 10-kill rule), the net-test harness usage, and the repo layout.
+- **`Docs/TechnicalNotes.MD`** — the assignment's technical-notes deliverable: architecture table; DIS integration choices with rationale (UDP+PDU subsystems only, bypassed manager/components, broadcast + SO_REUSEADDR + loopback, local-frame-in-ECEF simplification, identity scheme); complete message/event flow (threshold/heartbeat movement with mirrored prediction, Fire-seeded ghost shells, steerable-shell corrections, victim-adjudicated kills, articulation-record score state, message-free round reset, token-rank identity); a failure-mode table for delayed/dropped/duplicated/reordered traffic; measured results for all four lag profiles; assumptions; honest limitations (local coordinates, token collision odds, hour wrap, graze-rejection under lag, inbound-only conditioner, 2-player support with N-shaped design); prioritized improvements; third-party inventory (GRILL DIS/OpenDIS6, engine primitives only); and the AI/LLM usage section describing the Claude Code collaboration model, pointing at both logs as the full record.
+- Completed the test matrix by running the two remaining profiles: **Latency PASS** (DR mean 19 cm; one 16 m correction spike traced to a kill's death-bounce teleport, absorbed by the ghost snap rule — footnoted) and **Loss PASS** (DR mean ≤18 cm; no kills landed in that 90 s run, noted by the harness).
+
+### User Choices
+
+- Approved proceeding to the documentation phase.
