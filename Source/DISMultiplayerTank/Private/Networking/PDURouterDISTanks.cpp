@@ -24,6 +24,10 @@ void UPDURouterDISTanks::Initialize(FSubsystemCollectionBase& Collection)
 	// Slot ranking can change while ghosts already exist, so re-tint them on every peer-set change.
 	Registry->OnPeerSetChanged.AddUObject(this, &UPDURouterDISTanks::RetintGhostTanks);
 
+	// Score and round changes must reach peers immediately rather than on the next heartbeat.
+	Registry->OnScoreChanged.AddUObject(this, &UPDURouterDISTanks::ForceTankPublish);
+	Registry->OnRoundChanged.AddLambda([this](int32) { ForceTankPublish(); });
+
 	if (UPDUProcessor* Processor = GetGameInstance()->GetSubsystem<UPDUProcessor>())
 	{
 		Processor->OnEntityStatePDUProcessed.AddDynamic(this, &UPDURouterDISTanks::HandleEntityStatePDU);
@@ -242,6 +246,12 @@ void UPDURouterDISTanks::HandleDetonationPDU(FDetonationPDU DetonationPDU)
 
 	UE_LOG(LogDISTanks, Log, TEXT("KillConfirmed Victim=%s Killer=%s Distance=%.0f"), *DISTanksProtocol::EntityIDToString(LocalTankEntityID), *DISTanksProtocol::EntityIDToString(DetonationPDU.FiringEntityID), DistanceCm);
 	Tank->HandleConfirmedKill(KillerLocationCm);
+
+	// The victim owns kill attribution: credit the shooter in our published counters.
+	if (UPeerRegistryDISTanks* Registry = GetGameInstance()->GetSubsystem<UPeerRegistryDISTanks>())
+	{
+		Registry->RecordLocalDeath(DetonationPDU.FiringEntityID.Application);
+	}
 	EvaluateLocalTankPublish();
 }
 
@@ -300,6 +310,24 @@ void UPDURouterDISTanks::EvaluateLocalTankPublish()
 	TankPDU.EntityType.EntityKind = 1;
 	TankPDU.EntityType.Domain = 1;
 	TankPDU.EntityAppearance.Damage = bDestroyed ? EEntityDamage::Destroyed : EEntityDamage::NoDamage;
+
+	// Score state rides the ESPDU as articulation records: type 0 = round number, type = killer app ID -> deaths.
+	if (UPeerRegistryDISTanks* Registry = GetGameInstance()->GetSubsystem<UPeerRegistryDISTanks>())
+	{
+		FArticulationParameters RoundRecord;
+		RoundRecord.ParameterType = 0;
+		RoundRecord.ParameterValue = static_cast<float>(Registry->GetCurrentRoundNumber());
+		TankPDU.ArticulationParameters.Add(RoundRecord);
+
+		for (const TPair<int32, int32>& CounterPair : Registry->GetLocalDeathsByKiller())
+		{
+			FArticulationParameters DeathRecord;
+			DeathRecord.ParameterType = CounterPair.Key;
+			DeathRecord.ParameterValue = static_cast<float>(CounterPair.Value);
+			TankPDU.ArticulationParameters.Add(DeathRecord);
+		}
+	}
+
 	EmitPDUBytes(TankPDU.ToBytes());
 
 	TankTracker.MarkPublished(NowWorldSeconds, LocationMeters, YawDegrees, VelocityMetersPerSec, bDestroyed);
@@ -368,6 +396,22 @@ void UPDURouterDISTanks::HandleRemoteTankState(const FEntityStatePDU& EntityStat
 	if (UPeerRegistryDISTanks* Registry = GetGameInstance()->GetSubsystem<UPeerRegistryDISTanks>())
 	{
 		Registry->NotifyPeerHeard(EntityStatePDU.EntityID.Application, NowWorldSeconds);
+
+		// Decode the score state riding the ESPDU's articulation records.
+		int32 PeerRoundNumber = 1;
+		TMap<int32, int32> PeerDeathsByKiller;
+		for (const FArticulationParameters& Record : EntityStatePDU.ArticulationParameters)
+		{
+			if (Record.ParameterType == 0)
+			{
+				PeerRoundNumber = FMath::RoundToInt32(Record.ParameterValue);
+			}
+			else
+			{
+				PeerDeathsByKiller.Add(Record.ParameterType, FMath::RoundToInt32(Record.ParameterValue));
+			}
+		}
+		Registry->ApplyPeerScoreState(EntityStatePDU.EntityID.Application, PeerRoundNumber, PeerDeathsByKiller);
 	}
 }
 

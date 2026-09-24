@@ -38,6 +38,107 @@ void UPeerRegistryDISTanks::NotifyPeerLost(int32 ApplicationID)
 	}
 }
 
+void UPeerRegistryDISTanks::RecordLocalDeath(int32 KillerApplicationID)
+{
+	LocalDeathsByKiller.FindOrAdd(KillerApplicationID)++;
+	UE_LOG(LogDISTanks, Log, TEXT("ScoreDeath Killer=%d Deaths=%d Round=%d"), KillerApplicationID, LocalDeathsByKiller[KillerApplicationID], CurrentRoundNumber);
+	OnScoreChanged.Broadcast();
+	CheckRoundWin();
+}
+
+void UPeerRegistryDISTanks::ApplyPeerScoreState(int32 PeerApplicationID, int32 PeerRoundNumber, const TMap<int32, int32>& PeerDeathsByKiller)
+{
+	// A higher round number from any peer means the reset already happened elsewhere; adopt it.
+	if (PeerRoundNumber > CurrentRoundNumber)
+	{
+		AdvanceRound(PeerRoundNumber);
+	}
+
+	FPeerDISTanks* Peer = Peers.Find(PeerApplicationID);
+	if (!Peer || PeerRoundNumber < CurrentRoundNumber)
+	{
+		return;
+	}
+
+	Peer->RoundNumber = PeerRoundNumber;
+
+	// Take-max merge keeps counters immune to dropped, duplicated, or reordered packets.
+	bool bAnyCounterChanged = false;
+	for (const TPair<int32, int32>& CounterPair : PeerDeathsByKiller)
+	{
+		int32& StoredDeaths = Peer->DeathsByKiller.FindOrAdd(CounterPair.Key);
+		if (CounterPair.Value > StoredDeaths)
+		{
+			StoredDeaths = CounterPair.Value;
+			bAnyCounterChanged = true;
+		}
+	}
+
+	if (bAnyCounterChanged)
+	{
+		OnScoreChanged.Broadcast();
+		CheckRoundWin();
+	}
+}
+
+int32 UPeerRegistryDISTanks::GetScoreForApplication(int32 ApplicationID) const
+{
+	int32 TotalKills = 0;
+	if (const int32* LocalDeaths = LocalDeathsByKiller.Find(ApplicationID))
+	{
+		TotalKills += *LocalDeaths;
+	}
+	for (const TPair<int32, FPeerDISTanks>& PeerPair : Peers)
+	{
+		if (const int32* PeerDeaths = PeerPair.Value.DeathsByKiller.Find(ApplicationID))
+		{
+			TotalKills += *PeerDeaths;
+		}
+	}
+	return TotalKills;
+}
+
+TArray<int32> UPeerRegistryDISTanks::GetAllApplicationIDsBySlot() const
+{
+	TArray<int32> AllApplicationIDs;
+	Peers.GenerateKeyArray(AllApplicationIDs);
+	AllApplicationIDs.Add(LocalApplicationID);
+	AllApplicationIDs.Sort();
+	return AllApplicationIDs;
+}
+
+void UPeerRegistryDISTanks::AdvanceRound(int32 NewRoundNumber)
+{
+	if (NewRoundNumber <= CurrentRoundNumber)
+	{
+		return;
+	}
+
+	CurrentRoundNumber = NewRoundNumber;
+	LocalDeathsByKiller.Empty();
+	for (TPair<int32, FPeerDISTanks>& PeerPair : Peers)
+	{
+		PeerPair.Value.DeathsByKiller.Empty();
+	}
+
+	UE_LOG(LogDISTanks, Log, TEXT("RoundReset Round=%d"), CurrentRoundNumber);
+	OnRoundChanged.Broadcast(CurrentRoundNumber);
+	OnScoreChanged.Broadcast();
+}
+
+void UPeerRegistryDISTanks::CheckRoundWin()
+{
+	for (const int32 ApplicationID : GetAllApplicationIDsBySlot())
+	{
+		if (GetScoreForApplication(ApplicationID) >= KillsToWin)
+		{
+			UE_LOG(LogDISTanks, Log, TEXT("RoundWon Winner=%d Round=%d"), ApplicationID, CurrentRoundNumber);
+			AdvanceRound(CurrentRoundNumber + 1);
+			return;
+		}
+	}
+}
+
 int32 UPeerRegistryDISTanks::GetSlotForApplication(int32 ApplicationID) const
 {
 	// Every instance sorts the same token set, so the ranking is identical everywhere without a handshake.

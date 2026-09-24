@@ -49,6 +49,9 @@ protected:
 	/** Reapplies slot colors to all ghost tanks after the peer ranking changes. */
 	void RetintGhostTanks();
 
+	/** Forces the local tank state onto the wire on the next tick. */
+	void ForceTankPublish() { TankTracker.bHasPublished = false; }
+
 	/** Routes a received Entity State PDU to the matching ghost tank or shell, spawning one for unknown remote entities. */
 	UFUNCTION()
 	void HandleEntityStatePDU(FEntityStatePDU EntityStatePDU);

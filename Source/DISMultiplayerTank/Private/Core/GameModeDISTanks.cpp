@@ -6,11 +6,13 @@
 #include "Networking/PDURouterDISTanks.h"
 #include "Networking/PeerRegistryDISTanks.h"
 #include "Tanks/TankDISTanks.h"
+#include "UI/HUDDISTanks.h"
 
 AGameModeDISTanks::AGameModeDISTanks()
 {
 	DefaultPawnClass = ATankDISTanks::StaticClass();
 	PlayerControllerClass = APlayerControllerDISTanks::StaticClass();
+	HUDClass = AHUDDISTanks::StaticClass();
 	ArenaClass = AArenaDISTanks::StaticClass();
 }
 
@@ -33,10 +35,22 @@ APawn* AGameModeDISTanks::SpawnDefaultPawnFor_Implementation(AController* NewPla
 	if (Registry)
 	{
 		Registry->OnPeerSetChanged.AddUObject(this, &AGameModeDISTanks::RefreshMatchState);
+		Registry->OnRoundChanged.AddUObject(this, &AGameModeDISTanks::HandleRoundChanged);
 	}
 	RefreshMatchState();
 
 	return NewPawn;
+}
+
+void AGameModeDISTanks::HandleRoundChanged(int32 NewRoundNumber)
+{
+	// A new round aborts any running death sequence and repositions the local tank at its slot.
+	if (ATankDISTanks* Tank = LocalTankPawn.Get())
+	{
+		Tank->CancelDeathSequence();
+	}
+	LiveSlotIndex = -1;
+	RefreshMatchState();
 }
 
 void AGameModeDISTanks::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)

@@ -438,3 +438,27 @@ Verified with a live three-instance test: tokens negotiated slots 0/1/2 determin
 ### User Choices
 
 - Requested full N-player support for spawning and tinting (beyond the N-shaped data structures already in place).
+
+---
+
+## Entry 22 — 2026-09-24
+
+### Prompt
+
+> Proceed to phase 6
+
+### Claude's Answer
+
+Implemented phase 6 (score & round flow) on the Entry-8/9 design:
+
+- **Score state transport:** the tank ESPDU's DIS articulation-parameter records carry the custom state — record type 0 holds the round number, and one record per killer app holds "killed me N times". State rides the existing heartbeat/threshold publishing, and score/round changes force an immediate publish instead of waiting for the next heartbeat.
+- **Registry score model:** `UPeerRegistryDISTanks` now owns per-killer monotonic death counters (local + per-peer) with take-max merge on receive — immune to drops, duplicates, and reordering; the victim records attribution when it confirms a kill (`RecordLocalDeath` from the router's KillConfirmed path). Score of app A = sum of everyone's counters crediting A. New events: `OnScoreChanged`, `OnRoundChanged`.
+- **10-kill round reset, no reset message:** every instance watches the same counters; whichever first computes a score ≥ 10 advances its round number and clears counters, and the higher round number propagating in the published state makes every other instance adopt the reset deterministically (stale lower-round counters are ignored). The GameMode reacts to `OnRoundChanged` by aborting any running death sequence and repositioning the local tank at its slot; ghosts follow via dead reckoning with snap.
+- **`AHUDDISTanks` (UI/):** Canvas HUD drawing "ROUND N", a centered slot-colored score row ("P1* 3" style, asterisk = local player, N-shaped list), and a "WAITING FOR PLAYERS..." banner while no peers are known. Zero content assets.
+- `ATankDISTanks::CancelDeathSequence` added for round resets.
+
+Verified: compiles; two instances show the HUD with complementary local-player markers, green/red score entries, and ROUND 1 on both. Kill counting and the 10-kill reset flow need a user playtest (requires real firing); instances left running.
+
+### User Choices
+
+- (None this exchange — phase executed per the standing plan.)

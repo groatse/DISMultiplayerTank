@@ -182,6 +182,13 @@ void ATankDISTanks::SetDestroyedVisual(bool bNewDestroyedVisual)
 	SetTintColor(BaseTintColor);
 }
 
+void ATankDISTanks::CancelDeathSequence()
+{
+	bDeathSequenceActive = false;
+	DeathSequenceRemainingSeconds = 0.0f;
+	SetDestroyedVisual(false);
+}
+
 void ATankDISTanks::EnsureTintMaterials()
 {
 	if (!BodyMaterialInstance)

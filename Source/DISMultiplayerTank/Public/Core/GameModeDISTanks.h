@@ -32,6 +32,9 @@ protected:
 	/** Applies the current peer situation: waiting-frozen with no peers, or repositioned/tinted/unfrozen at the negotiated slot. */
 	void RefreshMatchState();
 
+	/** Aborts any death sequence and repositions the local tank when the round resets. */
+	void HandleRoundChanged(int32 NewRoundNumber);
+
 	/** Arena class to spawn, exposed for tuning or Blueprint variants. */
 	UPROPERTY(EditDefaultsOnly, Category = "Match")
 	TSubclassOf<AArenaDISTanks> ArenaClass;

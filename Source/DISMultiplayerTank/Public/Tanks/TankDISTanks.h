@@ -66,6 +66,9 @@ public:
 	/** Toggles the darkened destroyed look mirrored from a remote tank's published appearance. */
 	void SetDestroyedVisual(bool bNewDestroyedVisual);
 
+	/** Aborts a running death sequence, used when the round resets. */
+	void CancelDeathSequence();
+
 protected:
 	/** Applies one fixed step of rotation and swept translation, or the forced death slide. */
 	void SimulateMovementStep(float StepSeconds);
