@@ -41,12 +41,27 @@ public:
 	/** Returns true while the freeze-and-slide death sequence is running. */
 	bool IsDeathSequenceActive() const { return bDeathSequenceActive; }
 
+	/** Marks this tank as a ghost mirroring a remote instance's tank through dead reckoning. */
+	void InitAsGhost();
+
+	/** Returns true when this tank mirrors a remote instance's tank. */
+	bool IsGhost() const { return bIsGhost; }
+
+	/** Applies a freshly received remote state as the new dead-reckoning baseline. */
+	void ApplyRemoteTankState(const FVector& NewBaseLocation, float NewBaseYawDegrees, const FVector& NewVelocityCmPerSec, double ReceiveWorldSeconds);
+
+	/** Returns the velocity produced by the last simulation step in cm/s. */
+	FVector GetSimVelocityCmPerSec() const { return CurrentVelocityCmPerSec; }
+
 protected:
 	/** Applies one fixed step of rotation and swept translation, or the forced death slide. */
 	void SimulateMovementStep(float StepSeconds);
 
 	/** Freezes player control and starts the forced slide in a random direction. */
 	void StartDeathSequence();
+
+	/** Moves a ghost toward its dead-reckoned target with smoothing. */
+	void TickGhostInterpolation(float DeltaSeconds);
 
 	/** Collision box that sweeps against walls and receives shell hits. */
 	UPROPERTY(VisibleAnywhere, Category = "Tank")
@@ -88,13 +103,28 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Tank|Combat")
 	float DeathSlideSpeedCmPerSec = 300.0f;
 
+	/** How quickly a ghost closes on its dead-reckoned target. */
+	UPROPERTY(EditAnywhere, Category = "Tank|Ghost")
+	float GhostSmoothingSpeed = 8.0f;
+
+	/** Maximum seconds a ghost extrapolates past its last received update. */
+	UPROPERTY(EditAnywhere, Category = "Tank|Ghost")
+	float MaxExtrapolationSeconds = 1.0f;
+
 private:
 	TWeakObjectPtr<AShellDISTanks> ActiveShell;
 	FVector DeathSlideDirection = FVector::ZeroVector;
+	FVector CurrentVelocityCmPerSec = FVector::ZeroVector;
+	FVector RemoteBaseLocation = FVector::ZeroVector;
+	FVector RemoteVelocityCmPerSec = FVector::ZeroVector;
+	float RemoteBaseYawDegrees = 0.0f;
+	double RemoteBaseWorldSeconds = 0.0;
 	float DeathSequenceRemainingSeconds = 0.0f;
 	float CurrentThrustInput = 0.0f;
 	float CurrentTurnInput = 0.0f;
 	float MovementTimeAccumulator = 0.0f;
 	bool bMovementFrozen = false;
 	bool bDeathSequenceActive = false;
+	bool bIsGhost = false;
+	bool bHasRemoteState = false;
 };

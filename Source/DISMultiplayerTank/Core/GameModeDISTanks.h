@@ -32,9 +32,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Match")
 	TSubclassOf<AArenaDISTanks> ArenaClass;
 
-	/** Whether to spawn the temporary practice target tank. */
+	/** Whether to spawn the temporary practice target tank, superseded by DIS ghost tanks. */
 	UPROPERTY(EditDefaultsOnly, Category = "Match")
-	bool bSpawnPracticeTarget = true;
+	bool bSpawnPracticeTarget = false;
 
 	UPROPERTY()
 	TObjectPtr<AArenaDISTanks> ArenaActor;

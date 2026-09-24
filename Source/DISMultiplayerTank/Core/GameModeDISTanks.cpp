@@ -2,6 +2,7 @@
 
 #include "Core/ArenaDISTanks.h"
 #include "Core/PlayerControllerDISTanks.h"
+#include "Networking/PDURouterDISTanks.h"
 #include "Tanks/TankDISTanks.h"
 
 AGameModeDISTanks::AGameModeDISTanks()
@@ -13,10 +14,19 @@ AGameModeDISTanks::AGameModeDISTanks()
 
 APawn* AGameModeDISTanks::SpawnDefaultPawnFor_Implementation(AController* NewPlayer, AActor* StartSpot)
 {
-	// Slot 0 until the peer registry assigns negotiated slots in phase 5.
+	// Interim slot from the router until peer negotiation lands in phase 5.
+	UPDURouterDISTanks* Router = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPDURouterDISTanks>() : nullptr;
+	const int32 SpawnSlotIndex = Router ? Router->GetInterimSlotIndex() : 0;
+
 	AArenaDISTanks* Arena = EnsureArenaSpawned();
-	const FTransform SpawnTransform = Arena ? Arena->GetSpawnTransform(0) : FTransform::Identity;
-	return SpawnDefaultPawnAtTransform(NewPlayer, SpawnTransform);
+	const FTransform SpawnTransform = Arena ? Arena->GetSpawnTransform(SpawnSlotIndex) : FTransform::Identity;
+	APawn* NewPawn = SpawnDefaultPawnAtTransform(NewPlayer, SpawnTransform);
+
+	if (Router)
+	{
+		Router->RegisterLocalTank(Cast<ATankDISTanks>(NewPawn));
+	}
+	return NewPawn;
 }
 
 void AGameModeDISTanks::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)

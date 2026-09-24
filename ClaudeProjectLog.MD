@@ -289,3 +289,27 @@ Verification: compiles clean; visual launch showed both tanks in the arena; Clau
 
 - Confirmed phase 2 works by playtesting (movement, firing, hits registering).
 - Established that gameplay verification is done by the user's manual testing or the planned autopilot harness, not synthesized input.
+
+---
+
+## Entry 15 — 2026-09-24
+
+### Prompt
+
+> start phase 3
+
+### Claude's Answer
+
+Implemented phase 3 (DIS tank sync). First mapped the GRILL DIS plugin API with an exploration agent, which confirmed the plan's preferred integration: bypass `ADISGameManager`/send/receive components entirely (their receive routing requires a content asset) and use only the plugin's two GameInstance subsystems — `UUDPSubsystem` (sockets are SO_REUSEADDR-reusable; receive must set `bAllowLoopback=true` for two instances on one machine) and `UPDUProcessor` (auto-parses received bytes into typed PDU delegates). GeoReferencing avoided: both peers ride arena-local meters in the ECEF fields, a documented prototype simplification.
+
+New code:
+- `PDUTypesDISTanks.h` (Networking/) — protocol conventions: exercise/site IDs, cm↔m conversion, DIS relative-timestamp flattening with wrap-aware newer-than comparison, entity ID formatting.
+- `UPDURouterDISTanks` (Networking/) — the sole GRILL DIS touchpoint. Opens a broadcast send socket and a shared-port loopback-enabled receive socket (port 3000, `-DISPort=`/`-DISBroadcastAddress=` overrides); publishes the local tank per the Entry-7 design: mirrors the receivers' constant-velocity prediction locally and sends an ESPDU only when reality drifts >0.1 m or >2° from it, or on a 1 s heartbeat; routes received ESPDUs (filtered by exercise ID and own-entity echo) to ghost tanks, spawning them for unknown entity IDs; drops stale/out-of-order PDUs by timestamp; times out and destroys ghosts unheard for 10 s. Random DIS application ID as interim identity; `-PlayerSlot=` / app-parity as interim spawn slot (both replaced by phase-5 negotiation).
+- `ATankDISTanks` — ghost mode: `InitAsGhost`/`ApplyRemoteTankState`, per-frame constant-velocity dead reckoning with capped extrapolation (1 s) plus exponential smoothing toward the prediction; owned mode now tracks post-sweep step velocity that feeds the published DR state.
+- GameMode registers the local tank with the router and spawns at the router's interim slot; practice target now off by default. Build.cs gained `DISRuntime`, `Sockets`, `Networking`. Added `Tools/LaunchTwoInstances.ps1`.
+
+Verified end-to-end on localhost: two instances each opened sockets, published, and spawned a ghost for the other (log markers `RouterInitialized`/`SocketsOpened`/`GhostTankSpawned` on both sides with correct mirrored positions); screenshot showed both tanks rendering in both windows.
+
+### User Choices
+
+- (None this exchange — phase executed per the standing plan.)
