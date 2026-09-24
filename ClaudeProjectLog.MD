@@ -197,3 +197,19 @@ Wrote the full architecture plan to `Docs/ArchitecturePlan.MD`. Summary:
 
 - Folder-per-domain source organization with PascalCase folder names; `Source/` root frozen to current contents.
 - Class naming convention fixed as "ParentClass/OtherType" + "DISTanks" (e.g. `GameModeDISTanks`) following UE standards.
+
+---
+
+## Entry 11 — 2026-09-24
+
+### Prompt
+
+> why subsystems and not a gameinstance that handles replications/DIS?
+
+### Claude's Answer
+
+Defended the subsystem choice: `UGameInstanceSubsystem`s have the exact same lifetime as a custom GameInstance (created at instance init, survive map loads — which matters for peer identity and DIS sockets across a level-reload round reset), so nothing is lost. What's gained: (1) separation — a DIS-handling GameInstance becomes a god object since there is only one place to put everything, whereas subsystems give the wire (`UPDURouterDISTanks`) and identity/score (`UPeerRegistryDISTanks`) their own single-purpose units with an explicit init dependency via `Collection.InitializeDependency`; (2) typed access anywhere via `GetSubsystem<T>()` instead of a `Cast<UGameInstanceDISTanks>` at every call site; (3) symmetric composition with GRILL DIS, which itself ships as subsystems — our layer sits beside the plugin's, and a pivot on any flagged risk has a one-subsystem blast radius; (4) no door closed — a custom GameInstance can still be added later without touching the subsystems, while the reverse migration (unpicking a fat GameInstance) is the painful direction. Acknowledged the counterpoint that a custom GameInstance would work for a prototype this small, but subsystems cost the same and demonstrate the modern UE idiom, which is part of what is being evaluated.
+
+### User Choices
+
+- Questioned the subsystem-vs-custom-GameInstance choice; subsystem approach stands per the rationale above.
