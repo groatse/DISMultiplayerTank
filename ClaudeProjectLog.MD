@@ -505,3 +505,19 @@ Wrote the documentation deliverables:
 ### User Choices
 
 - Approved proceeding to the documentation phase.
+
+---
+
+## Entry 25 — 2026-09-24
+
+### Prompt
+
+> /sync
+
+### Claude's Answer
+
+Ran the sync workflow (the skill wasn't registered in this session, so its steps were followed manually): verified no Unreal editor was holding files, fetched — local `main` was 20 commits ahead with no remote divergence — and pushed `470b7ab..358f2c7` to `origin/main`. Working tree was already clean, so no new commit was needed. LFS headroom: 0.00 GiB of 10 GiB used (no binary assets yet — the project is still fully code-built).
+
+### User Choices
+
+- Invoked the first sync since the remote was created, publishing all phases (1–8) to GitHub.
