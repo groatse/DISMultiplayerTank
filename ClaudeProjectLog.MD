@@ -109,3 +109,25 @@ Asked four design questions: hit/kill authority model, shell synchronization met
 - **Shell sync — full DIS entity:** in the original game the shell is steerable (turning the tank steers the shell in flight), which requires the shell to be a live entity publishing Entity State PDUs, not a fire-and-forget event. User acknowledged this is prone to errors under lag/dropped frames affecting hit authority, but wants the steerable-shell ability in the first iteration.
 - **Instance identity — auto-negotiate with a failsafe against race conditions:** the game must run with minimal clicking — launch two instances on the network and they automatically start a game, no menu.
 - **Gameplay features:** one shell at a time per tank; score display; keep score; map reset at 10 kills. (No shell ricochet off walls, no round timer.)
+
+---
+
+## Entry 7 — 2026-09-24
+
+### Prompt
+
+> a thing on your two things number 1. what is your imagined DIS PDU flow for the steerable shells? Is it Shooter entity state update PDU for turning -> shell receives and updates its direction to the same direction -> Victim receives shooter PDU on turning and calculates shell location or victim receives shell PDU on location each frame and calculates for collision? what is the maximum deterministical and least lag prone setup that results in the least variation of visual events between players?
+
+### Claude's Answer
+
+Compared three shell-sync flows:
+
+1. **Deriving the shell from the shooter's tank ESPDUs** (victim integrates the shooter's orientation stream to reproduce the shell path) — rejected: it is input-streaming lockstep over an unreliable transport; every delayed/dropped/reordered orientation update permanently bends the victim's copy of the trajectory and the error compounds over flight time.
+2. **Shell ESPDU every frame with raw-position collision** — rejected as brute force: dropped packets still leave gaps needing extrapolation, raw positions stair-step under jitter, and frame rate is not a shared clock between machines.
+3. **Recommended (DIS-native): shell as its own entity with dead reckoning + threshold-triggered ESPDUs.** ESPDUs carry position *and velocity*, so the receiver self-predicts: Fire PDU + initial ESPDU on launch; the shooter mirrors the receiver's dead-reckoning model locally and emits a fresh ESPDU the instant the true shell deviates past a threshold (i.e., immediately on steering) — so remote error is bounded by one network latency, never accumulated. A fast shell heartbeat (~10–15 Hz vs. the DIS default 5 s) repairs dropped corrections within ~100 ms; out-of-order ESPDUs are discarded by timestamp. Shell physics runs on a fixed timestep on the owning machine so its path is frame-rate independent.
+
+Collision: any shell-vs-tank test pairs one owned and one dead-reckoned entity, so pick the smaller DR error — the shooter tests its exact shell against the DR'd victim tank (tanks are slow, so that error is tank speed x latency, i.e., tiny), sends a Detonation PDU targeting the victim, and the victim validates against its true position with tolerance before publishing its destruction. Matches the standard DIS authority split already chosen; kills are single-authority so screens cannot disagree on outcomes. Net visual variation: straight shells are pixel-identical (constant-velocity DR is exact); steered shells differ only for ~1 RTT after each turn input.
+
+### User Choices
+
+- Probed the steerable-shell PDU flow for the most deterministic, least lag-prone design before implementation (decision on the recommended flow pending user confirmation).
