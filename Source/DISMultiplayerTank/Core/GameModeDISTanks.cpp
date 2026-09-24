@@ -27,6 +27,26 @@ void AGameModeDISTanks::HandleStartingNewPlayer_Implementation(APlayerController
 	{
 		NewPlayer->SetViewTargetWithBlend(Arena);
 	}
+
+	SpawnPracticeTarget();
+}
+
+void AGameModeDISTanks::SpawnPracticeTarget()
+{
+	if (!bSpawnPracticeTarget || !GetWorld())
+	{
+		return;
+	}
+
+	AArenaDISTanks* Arena = EnsureArenaSpawned();
+	if (!Arena)
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	GetWorld()->SpawnActor<ATankDISTanks>(ATankDISTanks::StaticClass(), Arena->GetSpawnTransform(1), SpawnParameters);
 }
 
 AArenaDISTanks* AGameModeDISTanks::EnsureArenaSpawned()

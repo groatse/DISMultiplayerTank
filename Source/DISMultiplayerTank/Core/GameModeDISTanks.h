@@ -25,9 +25,16 @@ protected:
 	/** Spawns the arena once on demand and returns it. */
 	AArenaDISTanks* EnsureArenaSpawned();
 
+	/** Spawns an unpossessed target tank at slot 1 for local hit testing until ghost tanks arrive in phase 3. */
+	void SpawnPracticeTarget();
+
 	/** Arena class to spawn, exposed for tuning or Blueprint variants. */
 	UPROPERTY(EditDefaultsOnly, Category = "Match")
 	TSubclassOf<AArenaDISTanks> ArenaClass;
+
+	/** Whether to spawn the temporary practice target tank. */
+	UPROPERTY(EditDefaultsOnly, Category = "Match")
+	bool bSpawnPracticeTarget = true;
 
 	UPROPERTY()
 	TObjectPtr<AArenaDISTanks> ArenaActor;

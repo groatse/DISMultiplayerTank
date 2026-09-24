@@ -6,6 +6,7 @@
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
+#include "DISMultiplayerTank.h"
 #include "Tanks/TankDISTanks.h"
 
 void APlayerControllerDISTanks::SetupInputComponent()

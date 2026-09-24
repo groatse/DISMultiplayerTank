@@ -2,6 +2,8 @@
 
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "DISMultiplayerTank.h"
+#include "Shells/ShellDISTanks.h"
 #include "UObject/ConstructorHelpers.h"
 
 ATankDISTanks::ATankDISTanks()
@@ -27,6 +29,8 @@ ATankDISTanks::ATankDISTanks()
 	BarrelMesh->SetRelativeScale3D(FVector(0.9f, 0.12f, 0.12f));
 	BarrelMesh->SetRelativeLocation(FVector(95.0f, 0.0f, 0.0f));
 	BarrelMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	ShellClass = AShellDISTanks::StaticClass();
 }
 
 void ATankDISTanks::Tick(float DeltaSeconds)
@@ -59,7 +63,32 @@ void ATankDISTanks::SetMovementFrozen(bool bNewMovementFrozen)
 
 void ATankDISTanks::RequestFire()
 {
-	UE_LOG(LogTemp, Log, TEXT("RequestFire: shells arrive in phase 2."));
+	if (ActiveShell.IsValid() || bDeathSequenceActive || !ShellClass || !GetWorld())
+	{
+		return;
+	}
+
+	const FTransform MuzzleTransform(GetActorRotation(), GetActorLocation() + GetActorForwardVector() * MuzzleOffsetCm);
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AShellDISTanks* NewShell = GetWorld()->SpawnActor<AShellDISTanks>(ShellClass, MuzzleTransform, SpawnParameters);
+	if (NewShell)
+	{
+		NewShell->InitShell(this);
+		ActiveShell = NewShell;
+		UE_LOG(LogDISTanks, Log, TEXT("Fire Shooter=%s Location=%s"), *GetName(), *GetActorLocation().ToCompactString());
+	}
+}
+
+void ATankDISTanks::HandleShellHit(AShellDISTanks* HittingShell)
+{
+	if (bDeathSequenceActive)
+	{
+		return;
+	}
+
+	UE_LOG(LogDISTanks, Log, TEXT("TankDeath Victim=%s Shell=%s"), *GetName(), *GetNameSafe(HittingShell));
+	StartDeathSequence();
 }
 
 void ATankDISTanks::SimulateMovementStep(float StepSeconds)
@@ -69,10 +98,32 @@ void ATankDISTanks::SimulateMovementStep(float StepSeconds)
 		return;
 	}
 
+	// The death sequence overrides player control with the forced slide.
+	if (bDeathSequenceActive)
+	{
+		AddActorWorldOffset(DeathSlideDirection * (DeathSlideSpeedCmPerSec * StepSeconds), true);
+		DeathSequenceRemainingSeconds -= StepSeconds;
+		if (DeathSequenceRemainingSeconds <= 0.0f)
+		{
+			bDeathSequenceActive = false;
+			UE_LOG(LogDISTanks, Log, TEXT("TankRespawned Tank=%s Location=%s"), *GetName(), *GetActorLocation().ToCompactString());
+		}
+		return;
+	}
+
 	const float YawDeltaDegrees = CurrentTurnInput * TurnRateDegPerSec * StepSeconds;
 	AddActorWorldRotation(FRotator(0.0f, YawDeltaDegrees, 0.0f));
 
 	// Swept move so walls block the tank instead of being penetrated.
 	const FVector MoveDelta = GetActorForwardVector() * (CurrentThrustInput * MoveSpeedCmPerSec * StepSeconds);
 	AddActorWorldOffset(MoveDelta, true);
+}
+
+void ATankDISTanks::StartDeathSequence()
+{
+	bDeathSequenceActive = true;
+	DeathSequenceRemainingSeconds = DeathSequenceSeconds;
+
+	const float SlideAngleDegrees = FMath::FRandRange(0.0f, 360.0f);
+	DeathSlideDirection = FRotator(0.0f, SlideAngleDegrees, 0.0f).Vector();
 }

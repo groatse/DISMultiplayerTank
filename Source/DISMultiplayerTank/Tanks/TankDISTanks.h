@@ -4,6 +4,7 @@
 #include "GameFramework/Pawn.h"
 #include "TankDISTanks.generated.h"
 
+class AShellDISTanks;
 class UBoxComponent;
 class UStaticMeshComponent;
 
@@ -31,12 +32,21 @@ public:
 	/** Blocks or unblocks movement simulation, used by the death sequence. */
 	void SetMovementFrozen(bool bNewMovementFrozen);
 
-	/** Fires a shell if none of ours is currently alive (implemented in phase 2). */
+	/** Fires a shell if none of ours is currently alive and we are not dying. */
 	void RequestFire();
 
+	/** Reacts to being hit by an enemy shell by starting the death sequence. */
+	void HandleShellHit(AShellDISTanks* HittingShell);
+
+	/** Returns true while the freeze-and-slide death sequence is running. */
+	bool IsDeathSequenceActive() const { return bDeathSequenceActive; }
+
 protected:
-	/** Applies one fixed step of rotation and swept translation. */
+	/** Applies one fixed step of rotation and swept translation, or the forced death slide. */
 	void SimulateMovementStep(float StepSeconds);
+
+	/** Freezes player control and starts the forced slide in a random direction. */
+	void StartDeathSequence();
 
 	/** Collision box that sweeps against walls and receives shell hits. */
 	UPROPERTY(VisibleAnywhere, Category = "Tank")
@@ -62,9 +72,29 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Tank|Movement")
 	float FixedStepSeconds = 1.0f / 60.0f;
 
+	/** Shell class to spawn when firing. */
+	UPROPERTY(EditDefaultsOnly, Category = "Tank|Combat")
+	TSubclassOf<AShellDISTanks> ShellClass;
+
+	/** Muzzle distance from the tank center in cm. */
+	UPROPERTY(EditAnywhere, Category = "Tank|Combat")
+	float MuzzleOffsetCm = 165.0f;
+
+	/** Duration of the freeze-and-slide death sequence in seconds. */
+	UPROPERTY(EditAnywhere, Category = "Tank|Combat")
+	float DeathSequenceSeconds = 1.5f;
+
+	/** Forced slide speed during the death sequence in cm/s. */
+	UPROPERTY(EditAnywhere, Category = "Tank|Combat")
+	float DeathSlideSpeedCmPerSec = 300.0f;
+
 private:
+	TWeakObjectPtr<AShellDISTanks> ActiveShell;
+	FVector DeathSlideDirection = FVector::ZeroVector;
+	float DeathSequenceRemainingSeconds = 0.0f;
 	float CurrentThrustInput = 0.0f;
 	float CurrentTurnInput = 0.0f;
 	float MovementTimeAccumulator = 0.0f;
 	bool bMovementFrozen = false;
+	bool bDeathSequenceActive = false;
 };

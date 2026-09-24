@@ -263,3 +263,29 @@ Supporting changes: module root added to include paths in Build.cs; `DefaultEngi
 
 - In-code documentation standards: one-sentence function docs in headers, PascalCase descriptive variables everywhere (locals included), one-sentence max comments in .cpp files.
 - Corrected engine location to `D:\UE4\UE_5.7` (saved to Claude's memory).
+
+---
+
+## Entry 14 — 2026-09-24
+
+### Prompt
+
+> start phase 2
+
+(Mid-phase correction: "clearly your input method is not functioning, I can move the tank and shoot and hits register" — after Claude spent several cycles trying to verify firing by injecting synthesized keystrokes into the game window.)
+
+### Claude's Answer
+
+Implemented phase 2 (shell & death, all local):
+
+- `AShellDISTanks` (Shells/) — kinematic shell on the same fixed-timestep pattern as the tank: sphere collision + placeholder sphere mesh; flies at 900 cm/s and steers with the owner tank's live turn input (the steerable-shell mechanic, 90 deg/s); swept movement detonates on any blocking hit — walls kill the shell, an enemy tank takes the hit; shells ignore their shooter and pass through other shells like the original; 5 s failsafe lifetime.
+- `ATankDISTanks` — `RequestFire` spawns the shell at the muzzle with one-shell-at-a-time enforcement (weak pointer to the active shell) and blocks firing while dying; `HandleShellHit` starts the classic death sequence: player control frozen, forced slide in a random direction at 300 cm/s for 1.5 s (swept, so walls stop the slide), then control returns; invulnerable while the sequence runs.
+- `AGameModeDISTanks` — temporarily spawns an unpossessed practice-target tank at slot 1 (config flag, removed when ghost tanks arrive in phase 3).
+- New `LogDISTanks` log category (module header) with structured markers — `Fire`, `ShellImpact`, `TankDeath`, `TankRespawned` — which the phase-7 network test harness will parse.
+
+Verification: compiles clean; visual launch showed both tanks in the arena; Claude's attempts to fire via synthesized keystrokes (SendKeys with confirmed foreground focus and viewport click) never reached Enhanced Input and were abandoned — the user playtested manually and confirmed movement, shooting, and hit registration all work. Temporary input diagnostics were removed after the finding; the lesson (never verify UE gameplay via injected keystrokes; use user playtests or the future autopilot) was saved to Claude's memory.
+
+### User Choices
+
+- Confirmed phase 2 works by playtesting (movement, firing, hits registering).
+- Established that gameplay verification is done by the user's manual testing or the planned autopilot harness, not synthesized input.
