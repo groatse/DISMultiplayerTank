@@ -67,3 +67,19 @@ Created the private GitHub repository `groatse/DISMultiplayerTank` with `gh repo
 ### User Choices
 
 - Chose a private repository for the interview project.
+
+---
+
+## Entry 5 — 2026-09-24
+
+### Prompt
+
+> create another log - ProjectMainLog.MD - which has main tasks completed (like from above it would include two lines: 1) ClaudeProjectLog setup - contains communication and choices with Claude. 2) Git repo setup - for version control and deliverables. In the future it will have all new classes created and their main functionality along with design / architectural choices made.
+
+### Claude's Answer
+
+Created `ProjectMainLog.MD` in the repo root with the two requested entries (ClaudeProjectLog setup, Git repo setup) and a header describing its purpose. Going forward, each completed main task — new classes with their main functionality, and design/architectural choices — will be appended there, keeping it a concise deliverable-level summary separate from this verbose conversation log.
+
+### User Choices
+
+- Established a two-log structure: `ClaudeProjectLog.MD` for the full conversation record, `ProjectMainLog.MD` for high-level completed tasks and architectural decisions.
