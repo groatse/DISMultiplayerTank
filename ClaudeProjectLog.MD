@@ -131,3 +131,21 @@ Collision: any shell-vs-tank test pairs one owned and one dead-reckoned entity, 
 ### User Choices
 
 - Probed the steerable-shell PDU flow for the most deterministic, least lag-prone design before implementation (decision on the recommended flow pending user confirmation).
+
+---
+
+## Entry 8 — 2026-09-24
+
+### Prompt
+
+> a thing on the score sync: now that the choice has been made with the shells, the 10 kills are actually confirmed from both players, there should be no disagreement, correct?
+
+### Claude's Answer
+
+Confirmed: with victim-adjudicated kills, every death has exactly one authority (the tank that died declares it), and both instances derive both scores from those declarations — so the machines cannot decide differently; at worst one learns the outcome one latency later.
+
+Added one refinement to make it drop-proof: transmit score as state, not events. A death signaled only by a transient "destroyed" appearance could be missed entirely if all packets during the freeze window drop and the tank respawns before a surviving heartbeat. Instead, each tank carries a monotonic cumulative death counter (plus a round number) in its published state; score = opponent's death counter, receivers take the max ever seen. This is idempotent and immune to drops, duplicates, and reordering — a lost packet delays a score tick, never loses it. It also makes the 10-kill map reset deterministic with no extra reset broadcast: both machines watch the same counters and conclude "round over" from identical data, and the round number keeps stale packets from the previous round from polluting the new one.
+
+### User Choices
+
+- Confirmed the score model: kills are single-authority (victim-declared), so no score disagreement is possible — accepted as the basis for the 10-kill reset with the state-based (monotonic death counter + round number) refinement.
