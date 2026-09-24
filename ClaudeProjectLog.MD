@@ -34,3 +34,20 @@ Initialized a git repository in the project root and created a UE5-appropriate `
 
 - Accepted Claude's suggestion to set up version control with a UE5 `.gitignore`.
 - Chose to track `ClaudeProjectLog.MD` in the repository.
+
+---
+
+## Entry 3 — 2026-09-24
+
+### Prompt
+
+> setup lfs. also, only run sync on my command (copy skill /sync from D:\UE5\LoadedDiceFaceOff\.claude\skills\sync)
+
+### Claude's Answer
+
+Ran `git lfs install` and added a `.gitattributes` tracking UE binary assets (`.uasset`, `.umap`) and common imported media (textures, audio, FBX, fonts, DLLs) through LFS. Copied the `/sync` skill from the LoadedDiceFaceOff project into `.claude/skills/sync/`, with two adaptations: the skill description now states it must only be invoked on explicit user command (never proactively), and the old project's clone URL was replaced with a placeholder until this repo has a remote. The skill pulls before pushing and refuses to auto-resolve diverged histories, since binary UE assets cannot be merged.
+
+### User Choices
+
+- Adopted Git LFS for binary assets.
+- Reused the `/sync` workflow from the LoadedDiceFaceOff project, with the rule that sync runs only on explicit command.
