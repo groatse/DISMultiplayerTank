@@ -237,3 +237,29 @@ Standard profiles defined: Baseline, Latency (150 ms ± 50), Loss (20 %), Nasty 
 
 - Packaging the executable build and producing the gameplay video/screenshots are the user's own tasks; Claude delivers README + technical notes.
 - Network integration testing must be at least semi-automated across lag conditions (high packet loss, high latency); accepted suggestions pending review.
+
+---
+
+## Entry 13 — 2026-09-24
+
+### Prompt
+
+> alright, looks good. Now for the in-code documentation, I want .h to have a single sentence explanation for each function. All variables (even local) to be kept descriptive and in PascalCase and UE5 standard. Documentation in .cpp also kept to one sentence length (no 5 row Claude comments). Start phase 1.
+
+(Mid-phase correction: engine is at `D:\UE4\UE_5.7`, not the default Epic Games folder.)
+
+### Claude's Answer
+
+Implemented phase 1 (local gameplay core) under the stated documentation standards. New classes:
+
+- `ATankDISTanks` (Tanks/) — Combat-style pawn: box collision root + placeholder cube hull and hull-fixed barrel; fixed-timestep (60 Hz substep, hitch-capped accumulator) movement with rotate-in-place + forward/back thrust; swept moves so walls block; input setters clamped to [-1,1]; movement-freeze flag and fire stub ready for phase 2.
+- `AArenaDISTanks` (Core/) — procedural arena, no map asset needed: 1500x2000 floor with top at Z=0, four boundary walls, two symmetric center obstacles, movable directional light, fixed top-down camera (FOV 50 at 3200 cm for a pseudo-orthographic look), and a slot-indexed spawn transform array.
+- `APlayerControllerDISTanks` (Core/) — Enhanced Input built entirely in code (runtime-created mapping context/actions, no content assets): W/S + Up/Down thrust, A/D + Left/Right turn (negate modifiers), Space fire; Completed bindings zero the axes on release.
+- `AGameModeDISTanks` (Core/) — sets pawn/controller classes, lazily spawns the arena, spawns the pawn at slot 0 (peer-registry slots come in phase 5), and sets the arena camera as view target.
+
+Supporting changes: module root added to include paths in Build.cs; `DefaultEngine.ini` boots the engine's Entry map with `GlobalDefaultGameMode` pointing at our GameMode (avoids authoring a binary .umap; a real map can replace this later) and disables auto-exposure. Verified: editor target compiles; standalone launch confirmed `Game class is 'GameModeDISTanks'`, and a screenshot showed the lit arena with walls, obstacles, and the tank at its spawn slot. VS project files regenerated.
+
+### User Choices
+
+- In-code documentation standards: one-sentence function docs in headers, PascalCase descriptive variables everywhere (locals included), one-sentence max comments in .cpp files.
+- Corrected engine location to `D:\UE4\UE_5.7` (saved to Claude's memory).

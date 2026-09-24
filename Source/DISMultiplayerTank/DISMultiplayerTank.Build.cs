@@ -7,7 +7,10 @@ public class DISMultiplayerTank : ModuleRules
 	public DISMultiplayerTank(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-	
+
+		// Allow includes rooted at the module directory (e.g. "Tanks/TankDISTanks.h").
+		PublicIncludePaths.Add(ModuleDirectory);
+
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
