@@ -91,8 +91,8 @@ Assertions per run: both instances reach `MatchStarted`, no fatal errors, final 
 2. **Richer dead reckoning:** RVW/RPW algorithms with angular velocity + acceleration for curved-path extrapolation (plugin's `UDeadReckoning_BPFL` already implements them), and an interpolation-delay buffer for jitter-proof smoothness instead of pure exponential smoothing.
 3. **Acknowledged event channel** for Fire/Detonation (small resend window) rather than relying on failsafes.
 4. **N-player hardening:** late-join round state catch-up, per-peer round votes, soak tests with 4+ instances.
-5. **Round timer + match flow polish** (the original's 2:16 clock), audio/FX, packaged-build CI running the net-test profiles per commit.
-6. **OS-level validation** of the conditioner against clumsy/WinDivert once, to certify the app-layer simulation.
+5. **Match flow polish** (the original's 2:16 clock and a winner is declared), audio/FX.
+6. **Different systemic approaches** with design and testing effects on networking - non-steerable shells and effect bad network conditions (deterministic firing). Running against net-test.
 
 ## 8. Third-party code and assets
 
