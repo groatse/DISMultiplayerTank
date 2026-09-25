@@ -537,3 +537,69 @@ Session closed. Final state: phases 1–8 complete, verified, and pushed to orig
 ### User Choices
 
 - Ended the session.
+
+---
+
+## Entry 27 — 2026-09-25
+
+### Prompt
+
+> why haven't you used UFUNCTIONs throughout the project?
+
+### Claude's Answer
+
+Explained that UFUNCTION is only required where the reflection system must locate a function at runtime: dynamic delegate binding, Blueprint exposure, UE replication RPCs, or by-name invocation (timers/exec). The only such case in this project is the three GRILL DIS PDU handlers in PDURouterDISTanks.h, which are bound via AddDynamic and are marked UFUNCTION(). The project is C++-only (no Blueprint surface), uses DIS PDUs over UDP instead of UE replication (no RPCs), and drives per-frame work through FTSTicker/Tick (no named timer bindings), so all other functions are plain C++ members. Marking them UFUNCTION would add generated reflection code and compile time while falsely signaling a scripting/networking surface. Contrasted with the liberal UPROPERTY usage, which is justified by GC safety and editor tunability.
+
+### User Choices
+
+- None — informational question only; no code changes requested or made.
+
+---
+
+## Entry 28 — 2026-09-25
+
+### Prompt
+
+> there is a packaged game in D:\UE5\Packaged\DISTanks\Windows - make a separate git repo for that, make it public and commit + push it
+
+### Claude's Answer
+
+Created a standalone git repo in D:\UE5\Packaged\DISTanks\Windows (39 files, ~454 MB). Because the .ucas pak container (205 MB) and the Shipping exe (142 MB) exceed GitHub's 100 MB limit, Git LFS was enabled locally and tracks *.ucas, *.utoc, *.pak, *.exe, *.dll (32 LFS files, 475 MB uploaded). Added a README with run instructions and a link back to the source repo, committed, created the public repo github.com/groatse/DISTanks-Windows via gh, and pushed main.
+
+### User Choices
+
+- Requested the packaged build be published as its own public repository, separate from the source repo.
+
+---
+
+## Entry 29 — 2026-09-25
+
+### Prompt
+
+> add the zip, and make also the source repo (DisMultiplayerTanks) public
+> add the zip instructions to the DISTanks-Windows repo readme.MD as optional running instructions — and push it
+
+### Claude's Answer
+
+Made github.com/groatse/DISMultiplayerTank public via gh. Zipped the packaged build (330 MB, .git excluded) and started uploading it as release v1.0 on DISTanks-Windows. Updated that repo's README with an "Alternative: release zip (no git required)" section linking to the latest release, plus a warning that GitHub's Download ZIP button returns LFS pointer stubs; committed and pushed (34a3179).
+
+### User Choices
+
+- Made the source repository public.
+- Chose to offer the build as a release zip alongside the LFS clone path, documented in the README.
+
+---
+
+## Entry 30 — 2026-09-25
+
+### Prompt
+
+> /sync the source project too
+
+### Claude's Answer
+
+Synced the source repo: editor not running, remote unmoved, local was ahead by the Entry 26 commit plus uncommitted log updates. Committed Log Entries 27-29 (e0ea60d) and pushed 18fbb08..e0ea60d to origin/main. LFS usage across both repos: 0.46 GiB of 10 GiB (4.6%) — all of it from the packaged DISTanks-Windows repo; the source repo still has no binary assets.
+
+### User Choices
+
+- Invoked sync explicitly for the source project after publishing the packaged build.
